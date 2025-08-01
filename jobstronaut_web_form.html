@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jobstronaut™ Application Form</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4faff;
+      color: #1a1a1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .form-container {
+      background: white;
+      padding: 2rem 2.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 123, 255, 0.2);
+      max-width: 500px;
+      width: 100%;
+      border-top: 10px solid orange;
+    }
+    h1 {
+      text-align: center;
+      color: #007bff;
+      margin-bottom: 1rem;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 1rem;
+      color: #333;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    input[type="file"] {
+      border: none;
+    }
+    button {
+      margin-top: 2rem;
+      background-color: orange;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background-color: #ff8000;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h1>🚀 Jobstronaut™</h1>
+    <form action="https://jobstronaut-backend.onrender.com/apply" method="POST" enctype="multipart/form-data">
+      <label for="name">Name:</label>
+      <input type="text" name="name" required />
+
+      <label for="email">Email:</label>
+      <input type="email" name="email" required />
+
+      <label for="interest">Why do you want to work with us?</label>
+      <textarea name="interest" rows="4" required></textarea>
+
+      <label for="resume">Upload Resume:</label>
+      <input type="file" name="resume" accept=".pdf,.doc,.docx" required />
+
+      <button type="submit">Apply Now</button>
+    </form>
+  </div>
+</body>
+</html>
+
