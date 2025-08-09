@@ -4,15 +4,27 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Jobstronaut™ Application Form</title>
+
+  <!-- Favicons -->
+  <link rel="icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180x180.png">
+
+  <!-- PWA manifest & theme color -->
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0b1622">
+
   <style>
     body {
       background-color: #0b1622;
       color: #fff;
-      font-family: 'Segoe UI', sans-serif;
+      font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
+      margin: 0;
     }
     .form-box {
       background: #1c2733;
@@ -79,6 +91,8 @@
     </form>
     <small>Timestamp (UTC): {{ timestamp }}</small>
   </div>
+
+  <!-- Register service worker (PWA) -->
+  <script src="/sw-register.js"></script>
 </body>
 </html>
-
