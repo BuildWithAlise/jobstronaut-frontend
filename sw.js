@@ -1,8 +1,8 @@
-/* Jobstronaut 2.0 Service Worker */
-const CACHE_NAME = 'jobstronaut-v1';
+/* Jobstronaut 2.0 Service Worker (launch-ready) */
+const CACHE_NAME = 'jobstronaut-v1.0.0';
 const OFFLINE_URL = '/offline.html';
 
-// Add or remove assets as your app grows
+// Core assets to precache. Add to this list when you ship new static files.
 const ASSETS = [
   '/',
   '/index.html',
@@ -18,41 +18,40 @@ const ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.map(k => (k === CACHE_NAME ? null : caches.delete(k))))
-    )
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) return caches.delete(key);
+        })
+      )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Network-first for navigation; cache-first for static assets
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
+  const request = event.request;
 
-  // HTML navigations: try network first, fall back to offline page
+  // HTML navigation requests: try network first, fallback to offline page
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match(OFFLINE_URL);
-        return cached || new Response('Offline', { status: 503 });
-      })
+      fetch(request).catch(() =>
+        caches.match(OFFLINE_URL, { cacheName: CACHE_NAME })
+      )
     );
     return;
   }
 
-  // For other requests, try cache first, then network
+  // For other requests, try cache first, then network, then fallback to cache (if available)
   event.respondWith(
     caches.match(request).then((cached) => {
       return cached || fetch(request).then((response) => {
-        // Optionally: put a copy in cache (stale-while-revalidate-lite)
+        // Put a copy in cache (stale-while-revalidate-lite)
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         return response;

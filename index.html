@@ -89,7 +89,7 @@
 
       <input type="submit" value="Apply Now" />
     </form>
-    <small>Timestamp (UTC): {{ timestamp }}</small>
+    <small>Timestamp (UTC): <script>document.write(new Date().toISOString().replace('T',' ').split('.')[0] + ' UTC');</script></small>
   </div>
 
   <!-- Register service worker (PWA) -->
