@@ -11,14 +11,7 @@
   <link rel="icon" href="/favicon.ico" />
 
   <style>
-    :root{
-      --bg:#0b0718;
-      --card:#16112a;
-      --accent:#8a5cff;
-      --accent-2:#30d5ff;
-      --text:#ffffff;
-      --muted:#c9c6d6;
-    }
+    :root{ --bg:#0b0718; --card:#16112a; --accent:#8a5cff; --accent-2:#30d5ff; --text:#ffffff; --muted:#c9c6d6; }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
@@ -28,134 +21,63 @@
                   var(--bg);
       color:var(--text);
       font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
-      display:flex; align-items:center; justify-content:center;
-      padding:24px;
+      display:flex; align-items:center; justify-content:center; padding:24px;
     }
-    .shell{
-      width:min(1100px, 100%);
-      display:grid; gap:20px;
-      grid-template-columns: 1.2fr 1fr;
-    }
-    @media (max-width: 900px){
-      .shell{ grid-template-columns: 1fr; }
-    }
-    .card{
-      background:linear-gradient(180deg, rgba(255,255,255,.04), transparent),
-                 var(--card);
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:20px;
-      box-shadow:0 10px 30px rgba(0,0,0,.35);
-      padding:28px;
-    }
-    h1{
-      font-size: clamp(28px, 5vw, 48px);
-      line-height:1.05;
-      margin:0 0 10px;
-      letter-spacing:.2px;
-    }
-    .tagline{
-      font-size: clamp(16px, 2.5vw, 20px);
-      color:var(--muted);
-      margin:0 0 24px;
-    }
+    .shell{ width:min(1100px, 100%); display:grid; gap:20px; grid-template-columns: 1.2fr 1fr; }
+    @media (max-width: 900px){ .shell{ grid-template-columns: 1fr; } }
+    .card{ background:linear-gradient(180deg, rgba(255,255,255,.04), transparent), var(--card); border:1px solid rgba(255,255,255,.08); border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.35); padding:28px; }
+    h1{ font-size: clamp(28px, 5vw, 48px); line-height:1.05; margin:0 0 10px; letter-spacing:.2px; }
+    .tagline{ font-size: clamp(16px, 2.5vw, 20px); color:var(--muted); margin:0 0 24px; }
     .cta-row{ display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
-    .btn{
-      appearance:none; border:0; cursor:pointer;
-      padding:12px 18px; border-radius:14px;
-      font-weight:700; letter-spacing:.2px;
-      transition: transform .08s ease, box-shadow .2s ease, opacity .2s ease, background .2s ease;
-      color:#0b0718; background:linear-gradient(90deg, var(--accent), var(--accent-2));
-      box-shadow: 0 8px 24px rgba(138,92,255,.35);
-      text-decoration:none; display:inline-flex; align-items:center; gap:10px;
-    }
+    .btn{ appearance:none; border:0; cursor:pointer; padding:12px 18px; border-radius:14px; font-weight:700; letter-spacing:.2px; transition: transform .08s ease, box-shadow .2s ease, opacity .2s ease, background .2s ease; color:#0b0718; background:linear-gradient(90deg, var(--accent), var(--accent-2)); box-shadow: 0 8px 24px rgba(138,92,255,.35); text-decoration:none; display:inline-flex; align-items:center; gap:10px; }
     .btn:hover{ transform: translateY(-1px); }
     .btn:active{ transform: translateY(0); }
-    .btn.secondary{
-      background:transparent; color:var(--text);
-      border:1px solid rgba(255,255,255,.16);
-      box-shadow:none;
-    }
-    .stat-grid{
-      display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-top:18px;
-    }
-    .pill{
-      background:rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:12px; padding:12px 14px;
-      font-size:14px; color:var(--muted);
-      display:flex; align-items:center; gap:8px;
-    }
-    .glow{
-      height:10px; width:10px; border-radius:50%;
-      background: radial-gradient(circle at 30% 30%, #fff, var(--accent) 35%, transparent 60%);
-      box-shadow:0 0 16px var(--accent);
-    }
-    .hero{
-      display:flex; flex-direction:column; justify-content:center; height:100%;
-      background:
-        radial-gradient(500px 260px at 80% 10%, rgba(138,92,255,.25), transparent 60%),
-        radial-gradient(400px 220px at 15% 90%, rgba(48,213,255,.18), transparent 60%),
-        linear-gradient(180deg, rgba(255,255,255,.02), transparent),
-        var(--card);
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:20px; padding:28px;
-      position:relative; overflow:hidden;
-    }
-    .orb{
-      position:absolute; inset:auto -80px -80px auto; width:220px; height:220px;
-      border-radius:50%;
-      background: radial-gradient(circle at 30% 30%, #a98dff, #5e33ff 45%, #311b92 70%, transparent 72%);
-      filter: blur(1px); opacity:.5;
-      animation: float 7s ease-in-out infinite alternate;
-    }
-    @keyframes float{
-      from{ transform: translate(0,0) scale(1); }
-      to{ transform: translate(-12px, 10px) scale(1.06); }
-    }
-    .mini{
-      font-size:12px; color:var(--muted); margin-top:10px;
-      opacity:.9;
-    }
-    .logo{
-      display:inline-flex; align-items:center; gap:10px; margin-bottom:14px;
-      font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:var(--text);
-    }
-    .badge{
-      font-size:11px; padding:4px 8px; border-radius:999px;
-      border:1px solid rgba(255,255,255,.16); color:var(--muted);
-    }
+    .btn.secondary{ background:transparent; color:var(--text); border:1px solid rgba(255,255,255,.16); box-shadow:none; }
+    .pill{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px 14px; font-size:14px; color:var(--muted); display:flex; align-items:center; gap:8px; }
+    .glow{ height:10px; width:10px; border-radius:50%; background: radial-gradient(circle at 30% 30%, #fff, var(--accent) 35%, transparent 60%); box-shadow:0 0 16px var(--accent); }
+    .hero{ display:flex; flex-direction:column; justify-content:center; height:100%; background: radial-gradient(500px 260px at 80% 10%, rgba(138,92,255,.25), transparent 60%), radial-gradient(400px 220px at 15% 90%, rgba(48,213,255,.18), transparent 60%), linear-gradient(180deg, rgba(255,255,255,.02), transparent), var(--card); border:1px solid rgba(255,255,255,.08); border-radius:20px; padding:28px; position:relative; overflow:hidden; }
+    .orb{ position:absolute; inset:auto -80px -80px auto; width:220px; height:220px; border-radius:50%; background: radial-gradient(circle at 30% 30%, #a98dff, #5e33ff 45%, #311b92 70%, transparent 72%); filter: blur(1px); opacity:.5; animation: float 7s ease-in-out infinite alternate; }
+    @keyframes float{ from{ transform: translate(0,0) scale(1); } to{ transform: translate(-12px, 10px) scale(1.06); } }
+    .mini{ font-size:12px; color:var(--muted); margin-top:10px; opacity:.9; }
+    .logo{ display:inline-flex; align-items:center; gap:10px; margin-bottom:14px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:var(--text); }
+    .badge{ font-size:11px; padding:4px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.16); color:var(--muted); }
     .grid-cta{ display:grid; gap:12px; margin-top:16px; }
-    .note{
-      font-size:13px; color:var(--muted); margin-top:8px;
-    }
+    .note{ font-size:13px; color:var(--muted); margin-top:8px; }
+
+    /* Upload form */
+    form{ margin-top:16px; display:grid; gap:12px; }
+    .row{ display:grid; gap:8px; }
+    label{ font-weight:600; color:#fff; }
+    input[type="file"], input[type="email"]{ background:rgba(255,255,255,.06); color:#fff; border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:10px 12px; }
+    .help{ font-size:12px; color:var(--muted); }
+    .progress{ height:8px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; display:none; }
+    .bar{ height:100%; width:0%; background:linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .2s ease; }
+    .hidden{ display:none !important; }
   </style>
 </head>
 <body>
   <div class="shell">
     <section class="card">
-      <div class="logo">
-        <!-- Simple astronaut dot logo -->
-        <span class="glow" aria-hidden="true"></span>
-        Jobstronaut
-        <span class="badge">v2</span>
-      </div>
+      <div class="logo"><span class="glow" aria-hidden="true"></span> Jobstronaut <span class="badge">v2</span></div>
       <h1>The universe is hiring — and it wants you.</h1>
       <p class="tagline">I see your future — and it’s bright. Drop your resume, auto-apply to matching roles, and let NEPTUNE co-pilot the rest.</p>
 
-      <div class="cta-row">
-        <a class="btn" href="/apply/">
-          🚀 Apply now
-        </a>
+      <form id="applyForm">
+        <div class="row">
+          <label for="resume">Resume (PDF)</label>
+          <input id="resume" name="resume" type="file" accept="application/pdf" required />
+          <div class="help">Max 10MB. PDF is best for parsing.</div>
+        </div>
+        <div class="row">
+          <label for="email">Email (optional)</label>
+          <input id="email" name="email" type="email" placeholder="you@example.com" />
+        </div>
+        <div class="progress" id="prog"><div class="bar" id="bar"></div></div>
+        <button class="btn" type="submit">🚀 Upload & Submit</button>
         <button class="btn secondary" id="searchBtn" type="button">🔎 Browse jobs (preview)</button>
-      </div>
+      </form>
 
-      <div class="stat-grid">
-        <div class="pill"><span class="glow"></span> Fast uploads → S3</div>
-        <div class="pill"><span class="glow"></span> Auto-apply mode</div>
-        <div class="pill"><span class="glow"></span> Clean, private, yours</div>
-      </div>
-
-      <p class="note">Tip: use the button above to preview tomorrow’s jobs feed. The apply page redirects to the backend “/apply” route.</p>
+      <p class="note">The apply page also lives at <code>/apply/</code> for direct links.</p>
       <p class="mini">© <span id="y"></span> Jobstronaut • Built with love and late nights.</p>
     </section>
 
@@ -164,14 +86,19 @@
       <h2 style="margin:0 0 8px;">Welcome back, Commander.</h2>
       <p style="margin:0 0 16px; color:var(--muted);">NEPTUNE is standing by to submit, track, and follow up.</p>
       <div class="grid-cta">
-        <a class="btn" href="/apply/">Upload resume</a>
-        <button class="btn secondary" id="quickTest" type="button">Quick test (ping backend)</button>
+        <a class="btn" href="/apply/">Open redirect page</a>
+        <button class="btn secondary" id="quickTest" type="button">Quick test (ping PWA)</button>
       </div>
       <p class="mini">PWA ready: install to your home screen for a faster, app-like experience.</p>
     </aside>
   </div>
 
   <script>
+    // === Config: set BACKEND if your frontend is on a different origin ===
+    const BACKEND = '';
+    const PRESIGN = `${BACKEND}/s3/presign`;
+    const COMPLETE = `${BACKEND}/apply-complete`;
+
     // Footer year
     document.getElementById('y').textContent = new Date().getFullYear();
 
@@ -180,15 +107,73 @@
       alert('Jobs search comes next: API feed + cards + Auto-apply.');
     });
 
-    // Quick backend ping (adjust to your Render base URL if needed)
+    // Quick PWA ping
     document.getElementById('quickTest')?.addEventListener('click', async () => {
+      try { const r = await fetch('/sw.js', { cache:'no-store' }); alert(r.ok ? 'PWA reachable ✅' : 'PWA unreachable ❌'); }
+      catch { alert('Network error — check hosting.'); }
+    });
+
+    // Upload flow
+    const form = document.getElementById('applyForm');
+    const bar = document.getElementById('bar');
+    const prog = document.getElementById('prog');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const file = e.target.resume.files[0];
+      if (!file) return alert('Attach a PDF.');
+
       try {
-        const res = await fetch('/sw.js', { method: 'GET', cache: 'no-store' });
-        alert(res.ok ? 'Backend/PWA reachable ✅' : 'Reachability check failed ❌');
-      } catch (e) {
-        alert('Network error — check Render URL & CORS.');
+        // 1) presign
+        const pre = await fetch(PRESIGN, {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ filename: file.name, content_type: file.type || 'application/pdf', size: file.size, email: e.target.email.value || null })
+        }).then(r => r.json());
+        if (!pre || pre.ok === false) throw new Error(pre?.error || 'presign failed');
+
+        // 2) upload to S3 with progress
+        const fd = new FormData();
+        Object.entries(pre.fields).forEach(([k,v]) => fd.append(k, v));
+        fd.append('file', file);
+
+        prog.style.display = 'block';
+        await uploadWithProgress(pre.url, fd, (p) => { bar.style.width = `${p}%`; });
+
+        // 3) notify backend + redirect to success
+        await notifyCompleteAndRedirect(file, e.target.email.value || null);
+      } catch (err) {
+        console.error(err);
+        alert('Upload failed — please try again.');
       }
     });
+
+    async function uploadWithProgress(url, formData, onProgress){
+      // Use XHR for progress events
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.upload.onprogress = (evt) => {
+          if (evt.lengthComputable) onProgress(Math.round((evt.loaded / evt.total) * 100));
+        };
+        xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error(`S3 upload failed (${xhr.status})`));
+        xhr.onerror = () => reject(new Error('Network error during S3 upload'));
+        xhr.send(formData);
+      });
+    }
+
+    async function notifyCompleteAndRedirect(file, email){
+      try {
+        const res = await fetch(COMPLETE, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ filename: file?.name || null, size: file?.size || null, content_type: file?.type || 'application/pdf', email: email || null })
+        });
+        if (res.redirected) { window.location = res.url; return; }
+        const q = file?.name ? `?f=${encodeURIComponent(file.name)}` : '';
+        window.location = `/apply/success.html${q}`;
+      } catch (e) {
+        window.location = '/apply/success.html';
+      }
+    }
   </script>
 
   <!-- Register service worker (PWA) -->
