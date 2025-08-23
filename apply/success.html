@@ -1,70 +1,47 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Jobstronaut — Application Submitted ✅</title>
-  <meta name="theme-color" content="#1b1036" />
-  <link rel="icon" href="/favicon.ico" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jobstronaut — Success</title>
   <style>
-    :root{ --bg:#0b0718; --card:#16112a; --accent:#30d5ff; --accent-2:#8a5cff; --text:#fff; --muted:#c9c6d6; }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; display:flex; align-items:center; justify-content:center;
-      background: radial-gradient(900px 500px at 10% -10%, rgba(138,92,255,.22), transparent 60%),
-                  radial-gradient(800px 480px at 95% 5%, rgba(48,213,255,.16), transparent 60%),
-                  var(--bg);
-      color:var(--text); font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial
+    body {
+      background: #0b0b1a;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 3em 1em;
     }
-    .card{
-      background:linear-gradient(180deg, rgba(255,255,255,.04), transparent), var(--card);
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:20px; padding:40px; box-shadow:0 10px 30px rgba(0,0,0,.35);
-      text-align:center; max-width:680px; width:min(680px, 92%);
+    h1 {
+      color: #00ffcc;
+      margin-bottom: 1em;
     }
-    .logo{display:inline-flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; margin-bottom:10px}
-    .glow{height:10px; width:10px; border-radius:50%; background: radial-gradient(circle at 30% 30%, #fff, var(--accent-2) 35%, transparent 60%); box-shadow:0 0 16px var(--accent-2)}
-    h1{margin:12px 0 6px; font-size:clamp(24px,4.5vw,36px)}
-    p{margin:10px 0; color:var(--muted)}
-    .file{color:#fff; font-weight:700}
-    .cta{display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:18px}
-    .btn{
-      display:inline-flex; align-items:center; gap:8px; padding:12px 18px; border-radius:14px;
-      text-decoration:none; font-weight:700; cursor:pointer; border:0;
-      color:#0b0718; background:linear-gradient(90deg, var(--accent), var(--accent-2));
-      box-shadow: 0 8px 24px rgba(138,92,255,.35);
+    .checkmark {
+      font-size: 4em;
+      color: #00ffcc;
+      margin: 1em 0;
     }
-    .btn.secondary{
-      background:transparent; color:var(--text); border:1px solid rgba(255,255,255,.16); box-shadow:none;
+    a {
+      display: inline-block;
+      margin-top: 2em;
+      padding: 0.75em 1.5em;
+      background: #00ffcc;
+      color: #0b0b1a;
+      border-radius: 5px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: 0.2s;
     }
-    .mini{font-size:12px; color:var(--muted); margin-top:16px}
+    a:hover {
+      background: #00e6b8;
+    }
   </style>
 </head>
 <body>
-  <section class="card" role="status" aria-live="polite">
-    <div class="logo"><span class="glow" aria-hidden="true"></span> Jobstronaut</div>
-    <h1>Application Submitted Successfully ✅</h1>
-    <p>Thank you for trusting NEPTUNE. Your application is in orbit and on its way.</p>
-    <p id="fileRow" style="display:none;">File: <span class="file" id="fname"></span></p>
-
-    <div class="cta">
-      <a class="btn" href="/">← Back to Home</a>
-      <a class="btn secondary" href="/apply/">Submit another</a>
-    </div>
-
-    <p class="mini">You can close this tab—your data is safe and secure.</p>
-  </section>
-
-  <script>
-    // Show the uploaded filename if present (?f=...)
-    const params = new URLSearchParams(location.search);
-    const f = params.get('f');
-    if (f) {
-      document.getElementById('fname').textContent = f;
-      document.getElementById('fileRow').style.display = 'block';
-    }
-  </script>
+  <h1>✅ Resume Uploaded Successfully</h1>
+  <div class="checkmark">✔</div>
+  <p>Your application is complete.<br />We’ll be in touch soon!</p>
+  <a href="/">⬅ Back to Home</a>
 </body>
 </html>
 
