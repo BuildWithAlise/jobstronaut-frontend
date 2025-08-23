@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<<<<<<< HEAD
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jobstronaut™ Application Form</title>
+
+  <!-- Favicons -->
+  <link rel="icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180x180.png">
+
+  <!-- PWA manifest & theme color -->
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0b1622">
+
+  <style>
+    body {
+      background-color: #0b1622;
+      color: #fff;
+      font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+=======
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jobstronaut — The Universe is Hiring</title>
+  <meta name="description" content="Find roles and launch your applications with Jobstronaut." />
+  <style>
+    :root{
+      --bg:#0b0f1a; --bg2:#0e1530; --card:#121a2b; --text:#e8f0ff; --muted:#a6b3d6;
+      --accent:#ff9900; --accent-2:#6ee7ff; --ok:#2bffd2; --err:#ff8b8b; --ring:rgba(110,231,255,.35)
+>>>>>>> f60ed2a (site: branded homepage + /apply redirect)
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial,sans-serif;
+      color:var(--text);
+      background: radial-gradient(1200px 600px at 20% -10%, #142045 0%, transparent 60%),
+                  radial-gradient(900px 500px at 90% 10%, #1a1040 0%, transparent 60%),
+                  linear-gradient(180deg, var(--bg), var(--bg2) 65%);
+      background-attachment: fixed;
+    }
+    .wrap{max-width:900px;margin:64px auto;padding:0 16px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{
+      width:40px;height:40px;border-radius:12px;
+      background: conic-gradient(from 220deg, var(--accent), #ffd37a 30%, #3bd5ff 65%, var(--accent-2));
+      box-shadow:0 0 40px rgba(110,231,255,.25);
+    }
+    h1{margin:0;font-weight:800;letter-spacing:.3px}
+    .sub{margin:.25rem 0 1.25rem;color:var(--muted)}
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:20px;
+      box-shadow:0 12px 40px rgba(0,0,0,.35)
+    }
+    .grid{display:grid;grid-template-columns:1fr;gap:16px}
+    @media (min-width:820px){ .grid{grid-template-columns:1.2fr .8fr} }
+
+    /* Form */
+    label{display:block;margin:.25rem 0 .35rem;color:var(--muted);font-size:.95rem}
+    input,button,select{
+      width:100%; border-radius:12px; border:1px solid rgba(255,255,255,.14);
+      background:#0c1324; color:var(--text); padding:.8rem 1rem; outline:none;
+    }
+    input:focus,select:focus{box-shadow:0 0 0 3px var(--ring)}
+    button{
+      border:0; background:var(--accent); color:#001018; font-weight:800; cursor:pointer;
+      transition:transform .06s ease; margin-top:.5rem
+    }
+    button:hover{transform:translateY(-1px)}
+    .muted{color:var(--muted);font-size:.92rem}
+    .note{margin-top:8px}
+    .row{display:grid;gap:12px}
+    @media (min-width:560px){ .row{grid-template-columns:1fr 1fr} }
+
+    .cta{
+      display:flex; gap:12px; align-items:center; margin-top:16px; flex-wrap:wrap;
+    }
+    .ghost{
+      background:transparent; border:1px solid rgba(255,255,255,.16); color:var(--text)
+    }
+    .ghost:hover{background:rgba(255,255,255,.06)}
+    .tiny{font-size:.85rem}
+
+    footer{margin-top:28px;color:var(--muted);font-size:.9rem;text-align:center}
+    a{color:var(--accent-2); text-decoration:none}
+    a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Jobstronaut</h1>
+          <div class="sub">the universe is hiring — and it wants you</div>
+        </div>
+      </div>
+      <div>
+        <a href="/apply/" class="tiny">Apply &nbsp;→</a>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Left: Quick intro + search (future jobs feed) -->
+      <section class="card">
+        <h2 style="margin-top:0">Find & Apply</h2>
+        <p class="muted">Search roles by title & location (jobs feed coming next), then upload your resume to apply fast.</p>
+
+        <!-- Placeholder search UI for tomorrow’s jobs feed -->
+        <div class="row">
+          <div>
+            <label for="q">Role</label>
+            <input id="q" placeholder="e.g., Frontend Engineer" />
+          </div>
+          <div>
+            <label for="loc">Location</label>
+            <input id="loc" placeholder="e.g., Remote or New York" />
+          </div>
+        </div>
+        <div class="cta">
+          <button id="searchBtn" type="button">Search Jobs</button>
+          <button class="ghost" type="button" onclick="window.location.href='/apply/'">Upload Resume</button>
+        </div>
+        <p class="note muted tiny">Tip: you can jump straight to <a href="/apply/">/apply</a> to upload a PDF now.</p>
+      </section>
+
+      <!-- Right: Instant upload (same UX as /apply, simplified) -->
+      <section class="card">
+        <h2 style="margin-top:0">Upload your resume</h2>
+        <p class="muted">PDF only for now. You’ll get a signed link to view or download after upload.</p>
+
+<<<<<<< HEAD
+      <input type="submit" value="Apply Now" />
+    </form>
+    <small>Timestamp (UTC): <script>document.write(new Date().toISOString().replace('T',' ').split('.')[0] + ' UTC');</script></small>
+  </div>
+=======
+        <form id="upload">
+          <label for="resume">Resume (PDF)</label>
+          <input id="resume" name="resume" type="file" accept="application/pdf" required />
+          <button id="btn" type="submit">Upload</button>
+        </form>
+
+        <div id="progress" style="height:8px;background:#0e1730;border-radius:999px;overflow:hidden;margin-top:12px">
+          <span id="pg" style="display:block;height:100%;width:0;background:var(--ok);transition:width .2s"></span>
+        </div>
+        <div id="out" class="muted" style="margin-top:10px"></div>
+      </section>
+    </div>
+
+    <footer>
+      Backend: <code id="backendLabel"></code>
+    </footer>
+  </div>
+
+<script>
+  // 🔗 Backend endpoints
+  const BACKEND = 'https://jobstronaut-backend1.onrender.com';
+  const PRESIGN = `${BACKEND}/s3/presign`;
+  const SIGNGET = (k) => `${BACKEND}/s3/sign-get?key=${encodeURIComponent(k)}`;
+
+  document.getElementById('backendLabel').textContent = BACKEND;
+
+  // Simple upload form (no page nav)
+  const form = document.getElementById('upload');
+  const btn  = document.getElementById('btn');
+  const pgEl = document.getElementById('pg');
+  const out  = document.getElementById('out');
+  const file = document.getElementById('resume');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    out.textContent = '';
+    pgEl.style.width = '0%';
+    const f = file.files[0];
+    if (!f) { out.textContent = 'Attach a PDF.'; return; }
+
+    btn.disabled = true; btn.textContent = 'Signing…';
+    try {
+      // 1) presign
+      const pre = await fetch(PRESIGN, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ filename: f.name, content_type: f.type || 'application/pdf', size: f.size })
+      }).then(r=>r.json());
+      if (!pre.ok) throw new Error(pre.error || 'Presign failed');
+
+      // 2) upload to S3 with progress
+      const fd = new FormData();
+      Object.entries(pre.fields).forEach(([k,v]) => fd.append(k,v)); // includes key
+      fd.append('file', f);
+
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', pre.url, true);
+        xhr.upload.onprogress = (ev) => {
+          if (!ev.lengthComputable) return;
+          pgEl.style.width = Math.round((ev.loaded/ev.total)*100) + '%';
+        };
+        xhr.onerror = () => reject(new Error('Network error during S3 upload'));
+        xhr.onload  = () => (xhr.status>=200 && xhr.status<300) ? resolve() : reject(new Error('Upload to S3 failed'));
+        xhr.send(fd);
+      });
+
+      // 3) signed view/download
+      const signed = await fetch(SIGNGET(pre.key)).then(r=>r.json()).catch(()=>({ok:false}));
+      const viewUrl = signed && signed.ok ? signed.url : null;
+      const publicUrl = `https://${pre.bucket}.s3.${pre.region}.amazonaws.com/${encodeURIComponent(pre.key)}`;
+      let links = '';
+      if (viewUrl) {
+        const dlUrl = `${BACKEND}/s3/sign-get?key=${encodeURIComponent(pre.key)}&download=1&filename=${encodeURIComponent(f.name)}`;
+        links = ` <br><a href="${viewUrl}" target="_blank" rel="noopener">View (signed)</a>
+                  · <a href="${dlUrl}" target="_blank" rel="noopener">Download (signed)</a>`;
+      } else {
+        links = ` <br><a href="${publicUrl}" target="_blank" rel="noopener">Open (if public)</a>`;
+      }
+      out.innerHTML = `✅ Upload successful<br><small>Key:</small> <code>${pre.key}</code>${links}`;
+
+    } catch (err) {
+      out.innerHTML = `<span style="color:var(--err)">${err.message}</span>`;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Upload';
+    }
+  });
+
+  // Placeholder search action (tomorrow's jobs feed)
+  document.getElementById('searchBtn').addEventListener('click', () => {
+    alert('Jobs search comes next: API feed + cards + Auto-apply.');
+  });
+</script>
+</body>
+</html>
+>>>>>>> f60ed2a (site: branded homepage + /apply redirect)
+
+  <!-- Register service worker (PWA) -->
+  <script src="/sw-register.js"></script>
+</body>
+</html>

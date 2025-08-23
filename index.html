@@ -1,129 +1,166 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jobstronaut — Apply Now</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jobstronaut — The universe is hiring</title>
+  <meta name="description" content="Drop your resume. Let NEPTUNE co‑pilot job applications." />
+  <meta property="og:title" content="Jobstronaut" />
+  <meta property="og:description" content="The universe is hiring — and it wants you." />
+  <meta property="og:url" content="https://jobstronaut.dev" />
+  <meta property="og:image" content="/assets/social-card.png" />
+
+  <!-- PWA basics; safe to keep. We can enhance in v2 -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#2a1a4a">
+  <link rel="icon" href="/assets/icons/favicon.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
+
   <style>
-    body {
-      background: #0b0b1a;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 2em 1em;
+    :root{
+      --bg1:#0b0a16; --bg2:#0e1030; --card:#191833; --muted:#b9b6d3; --text:#f1effa;
+      --pill1:#6fc3ff; --pill2:#8a6bff; --pill3:#ff7ad9; --ring:rgba(138,107,255,.35);
     }
-    h1 {
-      color: #00ffcc;
-      margin-bottom: 0.5em;
-    }
-    p {
-      color: #87ceeb;
-      margin-bottom: 2em;
-    }
-    form {
-      margin: 2em auto;
-      padding: 2em;
-      background: #1a1a2e;
-      border-radius: 12px;
-      max-width: 400px;
-      box-shadow: 0 0 20px rgba(0,255,204,0.3);
-    }
-    input[type="file"] {
-      margin: 1em 0;
-      color: #fff;
-    }
-    button {
-      background: #00ffcc;
-      border: none;
-      padding: 0.8em 1.5em;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 1em;
-    }
-    button:hover {
-      background: #00cc99;
-    }
-    #message {
-      margin-top: 1em;
-      font-weight: bold;
-    }
-    #searchBtn {
-      margin-top: 3em;
-      background: #ff9900;
-    }
+    html,body{height:100%;}
+    body{margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji"; color:var(--text);
+      background: radial-gradient(1200px 800px at 80% 90%, #3f2c82 0%, transparent 60%),
+                  radial-gradient(900px 600px at 15% 15%, #2b1b62 0%, transparent 55%),
+                  linear-gradient(180deg, var(--bg2), var(--bg1));}
+    .wrap{max-width:1100px; margin:40px auto; padding:0 20px;}
+    .grid{display:grid; grid-template-columns:1fr; gap:28px;}
+    @media (min-width:980px){ .grid{ grid-template-columns: 1.15fr .85fr; } }
+
+    .card{background:linear-gradient(180deg, rgba(39,37,75,.85), rgba(30,28,58,.85));
+      border:1px solid rgba(255,255,255,.06); border-radius:24px; padding:26px; box-shadow: 0 10px 40px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.02) inset;}
+    h1{font-size:44px; line-height:1.06; margin:6px 0 14px;}
+    .eyebrow{font-size:12px; letter-spacing:.24em; color:#d6d3f7; text-transform:uppercase; opacity:.85}
+    p{color:var(--muted); margin:10px 0 18px;}
+
+    .field{display:flex; flex-direction:column; gap:8px; margin:12px 0;}
+    input[type="file"], input[type="email"]{ width:100%; background:#161532; border:1px solid rgba(255,255,255,.08); color:#e9e7fb; border-radius:10px; padding:12px 14px; outline:none; }
+    input[type="email"]::placeholder{ color:#8b88a8; }
+
+    .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; user-select:none; border-radius:999px; padding:12px 18px; font-weight:600; border:1px solid rgba(255,255,255,.08); text-decoration:none;}
+    .btn.primary{ background: linear-gradient(90deg, var(--pill2), var(--pill1)); color:#0a0a16; box-shadow: 0 0 0 6px var(--ring); }
+    .btn.primary:hover{ filter:brightness(1.04); }
+    .btn.outline{ background:transparent; color:#d7d5f4; }
+    .row{ display:flex; gap:12px; flex-wrap:wrap; }
+    .hint{ font-size:12px; color:#8f8cab; }
+
+    /* Success card animation */
+    .success{ border:1px solid rgba(111,195,255,.35); background:linear-gradient(180deg, rgba(30,45,70,.85), rgba(24,31,58,.85));
+      opacity:0; transform: translateY(12px) scale(.98); filter:saturate(.9);
+      transition: opacity .35s ease, transform .35s ease, filter .35s ease; }
+    .success.show{ opacity:1; transform:none; filter:none; }
+
+    footer{opacity:.7; font-size:12px; margin-top:10px}
   </style>
 </head>
 <body>
-  <h1>🚀 Jobstronaut</h1>
-  <p>The universe is hiring — and it wants you.</p>
+  <div class="wrap">
+    <div class="grid">
+      <!-- Left card: Upload -->
+      <div class="card">
+        <div class="eyebrow">JOBSTRONAUT <span style="opacity:.6">V2</span></div>
+        <h1>The universe is hiring — and it wants you.</h1>
+        <p>I see your future — and it’s bright. Drop your resume, auto‑apply to matching roles, and let NEPTUNE co‑pilot the rest.</p>
 
-  <form id="applyForm">
-    <label for="resume">Upload your resume (PDF only):</label><br/>
-    <input type="file" id="resume" name="resume" accept="application/pdf" required /><br/>
-    <button type="submit">Submit</button>
-  </form>
+        <form id="upload-form">
+          <div class="field">
+            <label>Resume (PDF)</label>
+            <input id="resume" type="file" accept="application/pdf" />
+            <div class="hint">Max 10MB. PDF is best for parsing.</div>
+          </div>
+          <div class="field">
+            <label>Email (optional)</label>
+            <input id="email" type="email" placeholder="you@example.com" />
+          </div>
+          <button id="submit-btn" class="btn primary" type="submit">✨ Upload & Submit</button>
+        </form>
 
-  <div id="message"></div>
+        <div style="height:8px"></div>
+        <a class="btn outline" href="/apply">🔭 Browse jobs (preview)</a>
+        <footer id="backendNote">Backend: https://jobstronaut-backend1.onrender.com</footer>
+      </div>
 
-  <button id="searchBtn">🔍 Search Jobs</button>
+      <!-- Right card: Commander panel -->
+      <div class="card">
+        <h2 style="margin-top:4px">Welcome back, Commander.</h2>
+        <p>NEPTUNE is standing by to submit, track, and follow up.</p>
+        <div class="row">
+          <a class="btn primary" href="/redirect">Open redirect page</a>
+          <a id="ping" class="btn outline" href="#">Quick test (ping PWA)</a>
+        </div>
+        <p class="hint">PWA ready: install to your home screen for a faster, app‑like experience.</p>
+      </div>
+    </div>
+
+    <div id="successBox" class="card success" style="margin-top:18px">
+      <h3>✅ Resume uploaded!</h3>
+      <p>We’ll start matching and keep you posted.</p>
+      <div class="row">
+        <a class="btn primary" href="/apply">Go to apply page</a>
+        <a class="btn outline" href="/browse">Browse jobs (preview)</a>
+      </div>
+    </div>
+  </div>
 
   <script>
-    const BACKEND = 'https://jobstronaut-backend1.onrender.com'; 
-    const PRESIGN = `${BACKEND}/s3/presign`;
-    const COMPLETE = `${BACKEND}/apply-complete`;
+    const API = 'https://jobstronaut-backend1.onrender.com';
 
-    document.getElementById('applyForm').addEventListener('submit', async (e) => {
+    // Optional PWA ping
+    document.getElementById('ping')?.addEventListener('click', (e)=>{
       e.preventDefault();
-      const file = document.getElementById('resume').files[0];
-      if (!file) {
-        alert('Please select a PDF resume to upload.');
-        return;
-      }
-
-      try {
-        // Step 1: Get presigned URL
-        const pre = await fetch(PRESIGN, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filename: file.name,
-            content_type: file.type || 'application/pdf',
-            size: file.size
-          })
-        }).then(r => r.json());
-
-        if (!pre.ok) throw new Error(pre.error || 'Presign failed');
-
-        // Step 2: Upload to S3
-        const fd = new FormData();
-        Object.entries(pre.fields).forEach(([k, v]) => fd.append(k, v));
-        fd.append('file', file);
-        await fetch(pre.url, { method: 'POST', body: fd });
-
-        // Step 3: Notify backend
-        await fetch(COMPLETE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: file.name })
-        });
-
-        // Step 4: Redirect to apply spinner
-        window.location.href = '/apply/index.html';
-
-      } catch (err) {
-        console.error(err);
-        document.getElementById('message').textContent = '❌ Upload failed. Try again.';
-      }
+      const sw = ('serviceWorker' in navigator); const online = navigator.onLine;
+      alert(`PWA check\nServiceWorker: ${sw ? '✅' : '❌'}\nOnline: ${online ? '✅' : '❌'}`);
     });
 
-    // Placeholder search button
-    document.getElementById('searchBtn').addEventListener('click', () => {
-      alert('Jobs search comes next: API feed + cards + Auto-apply.');
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
+
+    const form = document.getElementById('upload-form');
+    const fileInput = document.getElementById('resume');
+    const emailInput = document.getElementById('email');
+    const btn = document.getElementById('submit-btn');
+    const successBox = document.getElementById('successBox');
+
+    function toast(msg){ alert(msg); }
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const file = fileInput.files[0];
+      const email = (emailInput?.value || '').trim();
+      if (!file)  return toast('Please choose a PDF resume first.');
+      if (file.type !== 'application/pdf') return toast('PDF only, please.');
+      if (file.size > 10 * 1024 * 1024)    return toast('Max file size is 10MB.');
+
+      btn.disabled = true; btn.textContent = 'Uploading…';
+      try {
+        // 1) Presign
+        const fd = new FormData(); fd.append('filename', file.name); fd.append('content_type', file.type);
+        const presignRes = await fetch(`${API}/s3/presign`, { method: 'POST', body: fd });
+        if (!presignRes.ok) throw new Error('Could not get upload link.');
+        const { url, fields, key } = await presignRes.json();
+
+        // 2) Upload to S3
+        const s3fd = new FormData(); Object.entries(fields).forEach(([k,v])=> s3fd.append(k,v)); s3fd.append('file', file);
+        const s3Upload = await fetch(url, { method: 'POST', body: s3fd });
+        if (!s3Upload.ok) throw new Error('Upload to S3 failed.');
+
+        // 3) Notify backend
+        const meta = { email, filename:file.name, content_type:file.type, size:file.size, s3_key:key };
+        const completeRes = await fetch(`${API}/apply-complete`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(meta) });
+        if (!completeRes.ok) throw new Error('Could not save application.');
+
+        // 4) Animate success
+        successBox.classList.add('show');
+        toast('✅ Resume uploaded!');
+        successBox.scrollIntoView({behavior:'smooth', block:'center'});
+        form.reset();
+      } catch (err){
+        console.error(err); toast(err.message || 'Something went wrong. Try again.');
+      } finally { btn.disabled = false; btn.textContent = 'Upload & Submit'; }
     });
   </script>
-
-  <!-- Register service worker (PWA) -->
-  <script src="/sw-register.js"></script>
 </body>
 </html>
 
