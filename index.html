@@ -1,138 +1,218 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Jobstronaut — Direct‑to‑S3</title>
-<style>
-  :root{
-    --bg:#0b0c12; --card:#171924; --ink:#e9eaf2; --muted:#9aa0b2;
-    --accent:#ff7a1a; --accent-hi:#ffa356; --line:#232635;
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial}
-  .wrap{min-height:100%; display:grid; place-items:center; padding:24px}
-  .card{width:100%; max-width:620px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px 22px 18px; box-shadow:0 8px 28px rgba(0,0,0,.35)}
-  h1{font-size:22px; margin:0 0 2px}
-  .sub{font-size:13px; color:var(--muted); margin:0 0 16px}
-  label{font-weight:600; font-size:13px; margin-bottom:6px; display:block}
-  .row{display:grid; gap:10px; grid-template-columns:1fr 1fr}
-  .field{margin:12px 0}
-  input[type="text"], input[type="email"], input[type="file"], textarea{
-    width:100%; background:#10121a; border:1px solid var(--line); color:var(--ink);
-    border-radius:8px; padding:10px 12px; outline:none;
-  }
-  textarea{min-height:96px; resize:vertical}
-  .hint{font-size:12px; color:var(--muted); margin-top:6px}
-  .btn{width:100%; margin-top:14px; background:var(--accent); color:#121319; border:none; border-radius:8px; padding:12px 14px; font-weight:700; cursor:pointer}
-  .btn:hover{background:var(--accent-hi)}
-  .ok{display:none; margin-top:12px; padding:10px 12px; border:1px solid #2b6b2f; background:#0e2810; color:#b9f2b8; border-radius:8px}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jobstronaut — The universe is hiring</title>
+  <meta name="description" content="Drop your resume. Let Jobstronaut co‑pilot your applications." />
+  <meta property="og:title" content="Jobstronaut" />
+  <meta property="og:description" content="The universe is hiring — and it wants you." />
+  <meta property="og:url" content="https://jobstronaut.dev" />
+  <meta property="og:image" content="/assets/social-card.png" />
+
+  <!-- PWA basics (optional for v1, safe to keep) -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#2a1a4a">
+  <link rel="icon" href="/assets/icons/favicon.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
+
+  <style>
+    :root{
+      /* Pro theme palette */
+      --bg1:#0b0a16; --bg2:#0e1030; --card:#191833; --muted:#b9b6d3; --text:#f1effa;
+      --pill1:#6fc3ff; --pill2:#8a6bff; --pill3:#ff7ad9; --ring:rgba(138,107,255,.35);
+      --line: rgba(255,255,255,.08);
+    }
+    html,body{height:100%}
+    body{margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji"; color:var(--text);
+      background: radial-gradient(1200px 800px at 80% 90%, #3f2c82 0%, transparent 60%),
+                  radial-gradient(900px 600px at 15% 15%, #2b1b62 0%, transparent 55%),
+                  linear-gradient(180deg, var(--bg2), var(--bg1));}
+
+    .wrap{max-width:1280px; margin:40px auto; padding:0 24px;}
+    .grid{display:grid; grid-template-columns:1fr; gap:32px;}
+    @media (min-width:980px){ .grid{ grid-template-columns: 1.25fr .95fr; } }
+
+    .card{background:linear-gradient(180deg, rgba(39,37,75,.85), rgba(30,28,58,.85));
+      border:1px solid var(--line); border-radius:24px; padding:32px; box-shadow: 0 10px 40px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.02) inset;}
+    h1{font-size:48px; line-height:1.06; margin:6px 0 14px;}
+    h2{margin-top:4px}
+    .eyebrow{font-size:12px; letter-spacing:.24em; color:#d6d3f7; text-transform:uppercase; opacity:.85}
+    p{color:var(--muted); margin:10px 0 18px;}
+
+    .field{display:flex; flex-direction:column; gap:8px; margin:12px 0;}
+    input[type="file"], input[type="email"], input[type="text"], textarea{
+      width:100%; background:#161532; border:1px solid var(--line); color:#e9e7fb; border-radius:10px; padding:12px 14px; outline:none; }
+    input::placeholder, textarea::placeholder{ color:#8b88a8; }
+    textarea{min-height:96px; resize:vertical}
+
+    .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; user-select:none; border-radius:999px; padding:12px 18px; font-weight:600; border:1px solid var(--line); text-decoration:none;}
+    .btn.primary{ background: linear-gradient(90deg, var(--pill2), var(--pill1)); color:#0a0a16; box-shadow: 0 0 0 6px var(--ring); }
+    .btn.primary:hover{ filter:brightness(1.04); }
+    .btn.outline{ background:transparent; color:#d7d5f4; }
+    .row{ display:flex; gap:12px; flex-wrap:wrap; }
+    .hint{ font-size:12px; color:#8f8cab; }
+
+    /* Success animation */
+    .success{ border:1px solid rgba(111,195,255,.35); background:linear-gradient(180deg, rgba(30,45,70,.85), rgba(24,31,58,.85));
+      opacity:0; transform: translateY(12px) scale(.98); filter:saturate(.9);
+      transition: opacity .35s ease, transform .35s ease, filter .35s ease; margin-top:18px }
+    .success.show{ opacity:1; transform:none; filter:none; }
+
+    footer{opacity:.7; font-size:12px; margin-top:10px}
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <form class="card" id="form">
-    <h1>🚀 Jobstronaut</h1>
-    <p class="sub">Direct‑to‑S3 resume upload (no server bottlenecks).</p>
+  <div class="wrap">
+    <div class="grid">
+      <!-- Left card: Upload -->
+      <div class="card">
+        <div class="eyebrow">JOBSTRONAUT <span style="opacity:.6">V2</span></div>
+        <h1>The universe is hiring — and it wants you.</h1>
+        <p>Drop your resume, auto‑apply to matching roles, and let us co‑pilot the follow‑through.</p>
 
-    <div class="row">
-      <div class="field">
-        <label>Name</label>
-        <input id="name" type="text" placeholder="Jane Doe" />
+        <form id="upload-form">
+          <div class="field">
+            <label>Resume (PDF)</label>
+            <input id="resume" type="file" accept="application/pdf" />
+            <div class="hint">Max 10MB. PDF is best for parsing.</div>
+          </div>
+          <div class="field">
+            <label>Email (optional)</label>
+            <input id="email" type="email" placeholder="you@example.com" />
+          </div>
+          <div class="row">
+            <button id="submit-btn" class="btn primary" type="submit">✨ Upload & Submit</button>
+            <a class="btn outline" href="/apply">🔭 Browse jobs (preview)</a>
+          </div>
+        </form>
+        <footer id="backendNote">Backend: https://jobstronaut-backend1.onrender.com</footer>
       </div>
-      <div class="field">
-        <label>Email</label>
-        <input id="email" type="email" placeholder="jane@example.com" />
+
+      <!-- Right card: Command Console (MVP) -->
+      <div class="card" id="console">
+        <h2>Command Console</h2>
+        <p>Join the waitlist, check system status, and jump into applying.</p>
+
+        <form id="waitlist" class="row" style="gap:8px; margin-bottom:10px">
+          <input id="wl-email" type="email" placeholder="you@example.com" style="flex:1;min-width:220px;background:#161532;border:1px solid var(--line);color:#e9e7fb;border-radius:10px;padding:12px 14px;outline:none" />
+          <button class="btn primary" type="submit">Join waitlist</button>
+        </form>
+
+        <div class="row" style="margin-bottom:8px">
+          <a class="btn outline" id="btn-health" href="#">Check system status</a>
+          <a class="btn primary" href="/apply">Open Apply</a>
+        </div>
+        <p class="hint">Tip: Install to your home screen for a faster, app‑like experience.</p>
       </div>
     </div>
 
-    <div class="field">
-      <label>Role (optional)</label>
-      <input id="role" type="text" placeholder="e.g., Product Designer" />
+    <div id="successBox" class="card success">
+      <h3>✅ Resume uploaded!</h3>
+      <p>We’ll start matching and keep you posted.</p>
+      <div class="row">
+        <a class="btn primary" href="/apply">Go to apply page</a>
+        <a class="btn outline" href="/browse">Browse jobs (preview)</a>
+      </div>
     </div>
+  </div>
 
-    <div class="field">
-      <label>Message (optional)</label>
-      <textarea id="note" placeholder="Quick note…"></textarea>
-    </div>
+  <script>
+    // === Config ===
+    const API = 'https://jobstronaut-backend1.onrender.com'; // your backend URL
 
-    <div class="field">
-      <label>Resume (PDF only)</label>
-      <input id="file" type="file" accept="application/pdf" />
-      <div class="hint">PDF, up to 10 MB.</div>
-    </div>
+    // Register SW (safe no-op if missing)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    }
 
-    <button id="btn" class="btn" type="submit">Submit</button>
-    <div id="ok" class="ok">✅ Uploaded. We’ll be in touch!</div>
-  </form>
-</div>
+    // Elements
+    const form = document.getElementById('upload-form');
+    const fileInput = document.getElementById('resume');
+    const emailInput = document.getElementById('email');
+    const btn = document.getElementById('submit-btn');
+    const successBox = document.getElementById('successBox');
 
-<script>
-const API = 'https://jobstronaut-backend1.onrender.com'; // ← your backend
+    const wl = document.getElementById('waitlist');
+    const wlEmail = document.getElementById('wl-email');
 
-const el = {
-  f: document.getElementById('form'),
-  name: document.getElementById('name'),
-  email: document.getElementById('email'),
-  role: document.getElementById('role'),
-  note: document.getElementById('note'),
-  file: document.getElementById('file'),
-  btn: document.getElementById('btn'),
-  ok: document.getElementById('ok'),
-};
+    function toast(msg){ alert(msg); }
 
-function toast(m){ alert(m); }
+    // === Upload flow: presign -> S3 -> apply-complete ===
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const file = fileInput.files[0];
+      const email = (emailInput?.value || '').trim();
 
-el.f.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const f = el.file.files[0];
-  if (!f) return toast('Choose a resume PDF first.');
-  if (f.type !== 'application/pdf') return toast('PDF only, please.');
-  if (f.size > 10 * 1024 * 1024) return toast('Max size is 10 MB.');
+      if (!file)  return toast('Please choose a PDF resume first.');
+      if (file.type !== 'application/pdf') return toast('PDF only, please.');
+      if (file.size > 10 * 1024 * 1024)    return toast('Max file size is 10MB.');
 
-  el.btn.disabled = true; const prev = el.btn.textContent; el.btn.textContent = 'Uploading…';
+      btn.disabled = true; const prev = btn.textContent; btn.textContent = 'Uploading…';
+      try {
+        // 1) Presign
+        const fd = new FormData();
+        fd.append('filename', file.name);
+        fd.append('content_type', file.type);
+        const presignRes = await fetch(`${API}/s3/presign`, { method: 'POST', body: fd });
+        if (!presignRes.ok) throw new Error('Could not get upload link.');
+        const { url, fields, key } = await presignRes.json();
 
-  try {
-    // 1) PRESIGN
-    const fd = new FormData();
-    fd.append('filename', f.name);
-    fd.append('content_type', f.type);
-    const pre = await fetch(`${API}/s3/presign`, { method:'POST', body: fd });
-    if (!pre.ok) throw new Error('Could not get upload link.');
-    const { url, fields, key } = await pre.json();
+        // 2) Upload to S3
+        const s3fd = new FormData();
+        Object.entries(fields).forEach(([k,v])=> s3fd.append(k,v));
+        s3fd.append('file', file);
+        const s3Upload = await fetch(url, { method: 'POST', body: s3fd });
+        if (!s3Upload.ok) throw new Error('Upload to S3 failed.');
 
-    // 2) DIRECT S3 UPLOAD
-    const s3fd = new FormData();
-    Object.entries(fields).forEach(([k,v]) => s3fd.append(k,v));
-    s3fd.append('file', f);
-    const up = await fetch(url, { method:'POST', body: s3fd });
-    if (!up.ok) throw new Error('S3 upload failed.');
+        // 3) Notify backend
+        const meta = { email, filename:file.name, content_type:file.type, size:file.size, s3_key:key };
+        const completeRes = await fetch(`${API}/apply-complete`, {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(meta)
+        });
+        if (!completeRes.ok) throw new Error('Could not save application.');
 
-    // 3) NOTIFY BACKEND
-    const meta = {
-      name: el.name.value.trim(),
-      email: el.email.value.trim(),
-      role: el.role.value.trim(),
-      note: el.note.value.trim(),
-      filename: f.name, content_type: f.type, size: f.size, s3_key: key,
-    };
-    const done = await fetch(`${API}/apply-complete`, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(meta)
+        successBox.classList.add('show');
+        toast('✅ Resume uploaded!');
+        successBox.scrollIntoView({behavior:'smooth', block:'center'});
+        form.reset();
+      } catch (err){
+        console.error(err); toast(err.message || 'Something went wrong. Try again.');
+      } finally { btn.disabled = false; btn.textContent = prev; }
     });
-    if (!done.ok) throw new Error('Could not save record.');
 
-    // 4) SUCCESS
-    el.ok.style.display = 'block';
-    el.f.reset();
-  } catch (err) {
-    console.error(err);
-    toast(err.message || 'Something went wrong, please try again.');
-  } finally {
-    el.btn.disabled = false; el.btn.textContent = prev;
-  }
-});
-</script>
+    // === Waitlist -> /waitlist ===
+    wl?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = (wlEmail.value || '').trim();
+      if (!email) return toast('Enter your email to join.');
+
+      // optional UTM enrichment
+      const q = new URLSearchParams(location.search);
+      const body = {
+        email,
+        source: 'site-console',
+        utm_campaign: q.get('utm_campaign') || '',
+        utm_medium:   q.get('utm_medium')   || '',
+        utm_source:   q.get('utm_source')   || ''
+      };
+
+      try{
+        const r = await fetch(`${API}/waitlist`, {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+        });
+        if (!r.ok){ const j = await r.json().catch(()=>({error:'Error'})); throw new Error(j.error||'Could not add you right now.'); }
+        toast('✅ You’re on the list!'); wl.reset();
+      } catch(err){ toast(err.message || 'Something went wrong. Try later.'); }
+    });
+
+    // === Health check ===
+    document.getElementById('btn-health')?.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      try { const r = await fetch(`${API}/healthz`, {cache:'no-store'}); alert(r.ok ? '✅ Systems nominal' : '⚠️ Degraded'); }
+      catch { alert('❌ Offline'); }
+    });
+  </script>
 </body>
 </html>
 
