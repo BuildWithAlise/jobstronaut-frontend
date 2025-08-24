@@ -11,147 +11,211 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Jobstronaut — The universe is hiring</title>
-  <meta name="description" content="Jobstronaut helps you auto-apply to jobs that match your resume. Upload your resume and join the mission." />
+  <meta name="description" content="Drop your resume, auto‑apply to matching roles, and let us co‑pilot your job search." />
   <meta property="og:title" content="Jobstronaut — The universe is hiring">
-  <meta property="og:description" content="Drop your resume, join the waitlist, and let us co-pilot your job search.">
+  <meta property="og:description" content="Upload your resume, join the waitlist, and track applications.">
   <meta property="og:image" content="/og-image.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/favicon.ico" />
 
-  <!-- Plausible Analytics -->
+  <!-- Plausible -->
   <script defer data-domain="jobstronaut.dev" src="https://plausible.io/js/script.js"></script>
-  <script>
-    function track(evt, props) {
-      if (window.plausible) plausible(evt, { props });
-    }
-  </script>
+  <script>function track(e,p){ if(window.plausible) plausible(e,{props:p}); }</script>
 
   <style>
-    :root {
-      --bg: #0b0b16; --card: #141428; --accent: #ff7a00;
-      --text: #e8e8ff; --muted: #a5a5c7;
+    :root{
+      --bg:#0b0b16; --bg2:#0e0e22; --card:#14142a; --edge:#21214a;
+      --text:#e9e9ff; --muted:#a8a8c9; --accent:#ff7a00; --accent2:#ffb800;
     }
-    body { margin:0; font:16px/1.5 system-ui,Segoe UI,Roboto,Inter;
-      background:var(--bg); color:var(--text); }
-    .wrap { display:grid; grid-template-columns:1fr 1fr; gap:32px; max-width:1200px;
-      margin:0 auto; padding:40px 20px; }
-    .card { background:linear-gradient(180deg,#151532,#0f0f20);
-      border:1px solid #222247; border-radius:20px;
-      padding:32px; box-shadow:0 10px 30px rgba(0,0,0,.4); min-height:420px; }
-    h1 { margin:0 0 16px; font-size:28px; }
-    label { display:block; margin-top:12px; font-weight:600; }
-    input[type="file"],input[type="email"] {
-      margin-top:8px; padding:8px; width:100%; border-radius:8px;
-      border:1px solid #333355; background:#0f0f20; color:var(--text);
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font:16px/1.55 Inter,system-ui,Segoe UI,Roboto,Arial;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 800px at 10% -10%, #1a1a3a 0, transparent 70%),
+        radial-gradient(800px 600px at 90% 10%, #1a1030 0, transparent 70%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
     }
-    button { margin-top:16px; padding:12px 18px; border-radius:12px;
-      border:1px solid #2b2b4a; background:#171733; color:var(--text);
-      font-weight:600; cursor:pointer; }
-    button:hover { border-color:#3b3b6a; }
-    .cta { background:linear-gradient(90deg,#ff7a00,#ffb800); color:#140a00; border:0; }
-    footer { margin-top:20px; font-size:12px; color:#8e8eaf; }
-    footer a { color:#c8c8ff; margin-right:8px; }
+    .container{
+      max-width:1200px; margin:0 auto; padding:38px 18px 48px;
+    }
+    .hero{
+      font-weight:800; font-size:36px; letter-spacing:0.3px; margin:0 0 20px;
+    }
+    .sub{
+      color:var(--muted); margin:0 0 26px; max-width:780px;
+    }
+    .grid{
+      display:grid; grid-template-columns:1.1fr .9fr; gap:30px;
+    }
+    @media (max-width:980px){
+      .grid{grid-template-columns:1fr}
+    }
+    .card{
+      background:linear-gradient(180deg,#161633,#101026);
+      border:1px solid var(--edge);
+      border-radius:22px; padding:26px 26px 20px;
+      box-shadow:0 16px 40px rgba(0,0,0,.45);
+      min-height:460px;
+    }
+    .card h2{margin:0 0 6px; font-size:22px}
+    .hint{color:var(--muted); margin:0 0 18px}
+    label{display:block; font-weight:600; margin:14px 0 8px}
+    input[type="file"],input[type="email"]{
+      width:100%; padding:12px 12px; border-radius:12px;
+      border:1px solid #2b2b56; background:#0f0f20; color:var(--text);
+    }
+    .row{display:flex; gap:12px; flex-wrap:wrap}
+    .btn{
+      display:inline-flex; align-items:center; gap:10px;
+      padding:12px 16px; border-radius:14px; font-weight:700;
+      background:#171733; color:var(--text); border:1px solid #2b2b4a;
+      cursor:pointer; user-select:none; text-decoration:none;
+    }
+    .btn:hover{border-color:#3b3b6a}
+    .btn-cta{
+      background:linear-gradient(90deg,var(--accent),var(--accent2));
+      color:#140a00; border:none;
+      box-shadow:0 4px 16px rgba(255,122,0,.25);
+    }
+    .meta{
+      margin-top:14px; font-size:12px; color:#8f8fb2;
+    }
+    footer{
+      margin-top:22px; font-size:12px; color:#8e8eaf;
+      display:flex; gap:12px; flex-wrap:wrap;
+    }
+    footer a{color:#c8c8ff; text-decoration:none}
+    .badge{
+      display:inline-block; padding:6px 10px; border-radius:999px;
+      background:rgba(255,122,0,.12); color:var(--accent);
+      border:1px solid rgba(255,122,0,.35); font-size:12px; font-weight:700;
+      margin-bottom:10px;
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <!-- Left: Resume upload -->
-    <div class="card">
-      <h1>The universe is hiring — and it wants you.</h1>
-      <p>Drop your resume, auto-apply to matching roles, and let us co-pilot the follow-through.</p>
+  <div class="container">
+    <h1 class="hero">JOBSTRONAUT V2</h1>
+    <p class="sub">The universe is hiring — and it wants you. Drop your resume, auto‑apply to matching roles, and let us co‑pilot the follow‑through.</p>
 
-      <label for="resumeInput">Resume (PDF)</label>
-      <input id="resumeInput" type="file" accept="application/pdf" />
+    <div class="grid">
+      <!-- Left card: Upload -->
+      <section class="card">
+        <div class="badge">MVP</div>
+        <h2>Resume Upload</h2>
+        <p class="hint">Max 10 MB PDF is best for parsing.</p>
 
-      <label for="emailInput">Email (optional)</label>
-      <input id="emailInput" type="email" placeholder="you@example.com" />
+        <label for="resumeInput">Resume (PDF)</label>
+        <input id="resumeInput" type="file" accept="application/pdf">
 
-      <button id="uploadBtn" class="cta">Upload Resume</button>
-      <button onclick="location.href='/apply.html'">Browse jobs (preview)</button>
-    </div>
+        <label for="emailInput">Email (optional)</label>
+        <input id="emailInput" type="email" placeholder="you@example.com">
 
-    <!-- Right: Waitlist + console -->
-    <div class="card">
-      <h1>Command Console</h1>
-      <p>Join the waitlist, check system status, and jump into applying.</p>
+        <div class="row" style="margin-top:16px">
+          <button id="uploadBtn" class="btn btn-cta">✨ Upload & Submit</button>
+          <a class="btn" href="/apply.html">🛰️ Browse jobs (preview)</a>
+        </div>
 
-      <label for="waitlistEmail">Join waitlist</label>
-      <input id="waitlistEmail" type="email" placeholder="you@example.com" />
-      <button id="waitlistBtn" class="cta">Join waitlist</button>
+        <div class="meta">Backend: <span id="beUrl">https://jobstronaut-backend1.onrender.com</span></div>
+      </section>
 
-      <button id="healthBtn">Check system status</button>
+      <!-- Right card: Console -->
+      <section class="card">
+        <div class="badge">Console</div>
+        <h2>Command Console</h2>
+        <p class="hint">Join the waitlist, check system status, and jump into applying.</p>
+
+        <label for="waitlistEmail">Join waitlist</label>
+        <input id="waitlistEmail" type="email" placeholder="you@example.com">
+
+        <div class="row" style="margin-top:16px">
+          <button id="waitlistBtn" class="btn btn-cta">Join waitlist</button>
+          <button id="healthBtn" class="btn">Check system status</button>
+          <a class="btn" href="/apply.html">Open Apply</a>
+        </div>
+
+        <footer>
+          <a href="/privacy.html">Privacy</a>·
+          <a href="/terms.html">Terms</a>·
+          <a href="/sitemap.xml">Sitemap</a>
+        </footer>
+      </section>
     </div>
   </div>
-
-  <footer>
-    <a href="/privacy.html">Privacy</a>
-    <a href="/terms.html">Terms</a>
-    <a href="/sitemap.xml">Sitemap</a>
-  </footer>
 
   <script>
   const BACKEND = "https://jobstronaut-backend1.onrender.com";
 
-  async function uploadResume(file, email) {
-    // 1) Presign
-    const presignRes = await fetch(`${BACKEND}/s3/presign`, {
-      method:"POST", headers:{ "Content-Type":"application/json" },
+  // Upload flow: presign -> S3 -> apply-complete
+  async function uploadResume(file, email){
+    const presignRes = await fetch(`${BACKEND}/s3/presign`,{
+      method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({ filename:file.name, contentType:file.type||"application/pdf", size:file.size })
     });
     if(!presignRes.ok) throw new Error("presign_failed");
     const { url, fields, key } = await presignRes.json();
 
-    // 2) Upload to S3
-    const formData = new FormData();
-    Object.entries(fields).forEach(([k,v])=>formData.append(k,v));
-    formData.append("Content-Type", file.type || "application/pdf");
-    formData.append("file", file);
-    const s3Res = await fetch(url, { method:"POST", body:formData });
+    const fd = new FormData();
+    Object.entries(fields).forEach(([k,v])=>fd.append(k,v));
+    fd.append("Content-Type", file.type||"application/pdf");
+    fd.append("file", file);
+
+    const s3Res = await fetch(url,{ method:"POST", body:fd });
     if(!s3Res.ok) throw new Error("s3_upload_failed");
 
-    // 3) Notify backend
-    const doneRes = await fetch(`${BACKEND}/apply-complete`, {
-      method:"POST", headers:{ "Content-Type":"application/json" },
+    const doneRes = await fetch(`${BACKEND}/apply-complete`,{
+      method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({ filename:file.name, size:file.size, contentType:file.type||"application/pdf", email:(email||"").trim(), key })
     });
     if(!doneRes.ok) throw new Error("apply_complete_failed");
-    return true;
   }
 
   document.getElementById("uploadBtn").addEventListener("click", async ()=>{
     const file = document.getElementById("resumeInput").files[0];
     const email = document.getElementById("emailInput").value;
     if(!file) return alert("Please choose a PDF first.");
-    try {
+    try{
       track('UploadStarted');
       await uploadResume(file,email);
       track('UploadSuccess',{ size:file.size, type:file.type });
-      alert("✅ Resume uploaded successfully!");
-    } catch(e){ console.error(e); alert("Upload failed: "+e.message); }
+      alert("✅ Resume uploaded!");
+    }catch(err){
+      console.error(err); alert("Upload failed: "+err.message);
+    }
   });
 
   document.getElementById("waitlistBtn").addEventListener("click", async ()=>{
     const email = document.getElementById("waitlistEmail").value;
     if(!email) return alert("Enter your email");
-    try {
-      const res = await fetch(`${BACKEND}/waitlist`, {
-        method:"POST", headers:{ "Content-Type":"application/json" },
+    try{
+      const res = await fetch(`${BACKEND}/waitlist`,{
+        method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ email })
       });
       if(!res.ok) throw new Error("waitlist_failed");
       track('WaitlistJoined');
       alert("✅ Added to waitlist!");
-    } catch(e){ console.error(e); alert("Waitlist join failed: "+e.message); }
+    }catch(err){ console.error(err); alert("Waitlist join failed: "+err.message); }
   });
 
   document.getElementById("healthBtn").addEventListener("click", async ()=>{
-    try {
-      const res = await fetch(`${BACKEND}/healthz`);
-      const j = await res.json();
+    try{
+      const r = await fetch(`${BACKEND}/healthz`);
+      const j = await r.json();
       track('HealthCheckClicked');
       alert("Health: "+JSON.stringify(j));
-    } catch(e){ alert("Health check failed"); }
+    }catch{ alert("Health check failed"); }
   });
+
+  // If a stale Service Worker is interfering, offer a nuke option:
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations().then(rs=>{
+      // Uncomment to force-unregister during debugging:
+      // rs.forEach(r=>r.unregister());
+    });
+  }
   </script>
 </body>
 </html>
