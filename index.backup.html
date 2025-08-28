@@ -1,0 +1,172 @@
+<!-- ===============================================================
+     Jobstronaut™ Frontend
+     Author: Alise McNiel
+     Copyright (c) 2025 Alise McNiel. All rights reserved.
+     This software is part of the Jobstronaut™ project.
+     Unauthorized copying, modification, or distribution is prohibited.
+     =============================================================== -->
+<!doctype html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Jobstronaut</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #0d0d1a;
+        color: #fff;
+        margin: 0;
+        padding: 0;
+        text-align: center;
+      }
+      header {
+        padding: 20px;
+      }
+      .container {
+        max-width: 640px;
+        margin: 24px auto;
+        padding: 16px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 12px;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      input, button {
+        padding: 10px;
+        border-radius: 6px;
+        border: none;
+      }
+      button {
+        background: #ff6600;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .banner { padding: 8px; border-radius: 6px; margin-top: 8px; }
+      .success { background: #e7f7ee; color: #000; }
+      .error { background: #fde8e8; color: #000; }
+      .info { background: #eef2ff; color: #000; }
+      .status { margin-top: 6px; font-size: 12px; opacity: .8; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🚀 Jobstronaut</h1>
+      <p>The universe is hiring — and it wants you.</p>
+    </header>
+
+```
+<div class="container">
+  <h2>Join the Waitlist</h2>
+  <form id="waitlist-form" action="https://jobstronaut-backend1.onrender.com/waitlist" method="POST">
+    <input type="email" name="email" placeholder="you@example.com" required />
+    <button type="submit">Join Waitlist</button>
+  </form>
+</div>
+
+<div class="container">
+  <h2>Upload Your Resume (PDF)</h2>
+  <form id="resume-form">
+    <label>Email (optional)</label>
+    <input type="email" id="email" placeholder="you@example.com" />
+
+    <label>PDF Resume</label>
+    <input type="file" id="resume" accept="application/pdf" required />
+
+    <button id="upload-btn" type="submit">Upload Resume</button>
+  </form>
+
+  <div id="banner" class="banner" style="display:none"></div>
+  <div id="status" class="status"></div>
+</div>
+
+<script>
+  const API_BASE = "https://jobstronaut-backend1.onrender.com";
+  const PRESIGN_ENDPOINT = "/s3/presign";
+  const COMPLETE_ENDPOINT = "/apply-complete";
+  const LOCKED_CONTENT_TYPE = "application/pdf";
+
+  const $ = (s) => document.querySelector(s);
+  function setBanner(type, msg) {
+    const b = $("#banner");
+    b.style.display = "block";
+    b.className = "banner " + type;
+    b.textContent = msg;
+  }
+  function setStatus(msg) {
+    const s = $("#status");
+    if (s) s.textContent = msg;
+  }
+
+  async function jsonFetch(url, opts = {}) {
+    const r = await fetch(url, opts);
+    if (!r.ok) {
+      const t = await r.text();
+      throw new Error(`HTTP ${r.status} ${r.statusText}: ${t}`);
+    }
+    return r.json();
+  }
+
+  async function uploadResume(file, email) {
+    if (!file) throw new Error("No file provided");
+
+    const { url, key, contentType } = await jsonFetch(API_BASE + PRESIGN_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: file.name, contentType: LOCKED_CONTENT_TYPE, email: email || null })
+    });
+
+    const putRes = await fetch(url, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": contentType || LOCKED_CONTENT_TYPE }
+    });
+    if (!putRes.ok) {
+      const err = await putRes.text();
+      console.error("S3 PUT failed", putRes.status, err);
+      throw new Error("s3_upload_failed");
+    }
+
+    await jsonFetch(API_BASE + COMPLETE_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email || null, filename: file.name, s3_key: key, content_type: contentType || LOCKED_CONTENT_TYPE })
+    });
+
+    return { key };
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = $("#resume-form");
+    const btn = $("#upload-btn");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const file = $("#resume").files?.[0];
+      const email = $("#email")?.value?.trim() || null;
+      try {
+        btn.disabled = true;
+        setBanner("info", "Uploading…");
+        setStatus("Starting upload…");
+        const { key } = await uploadResume(file, email);
+        setBanner("success", "✅ Resume uploaded!");
+        setStatus("S3 key: " + key);
+      } catch (err) {
+        console.error(err);
+        setBanner("error", "⚠️ Upload failed, please retry.");
+        setStatus(err.message || "Upload failed");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+</script>
+```
+
+  </body>
+</html>
+
