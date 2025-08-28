@@ -5,218 +5,168 @@
      This software is part of the Jobstronaut™ project.
      Unauthorized copying, modification, or distribution is prohibited.
      =============================================================== -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Jobstronaut — The universe is hiring</title>
-  <meta name="description" content="Drop your resume, auto‑apply to matching roles, and let us co‑pilot your job search." />
-  <meta property="og:title" content="Jobstronaut — The universe is hiring">
-  <meta property="og:description" content="Upload your resume, join the waitlist, and track applications.">
-  <meta property="og:image" content="/og-image.png" />
-  <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="icon" href="/favicon.ico" />
+<!doctype html>
 
-  <!-- Plausible -->
-  <script defer data-domain="jobstronaut.dev" src="https://plausible.io/js/script.js"></script>
-  <script>function track(e,p){ if(window.plausible) plausible(e,{props:p}); }</script>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Jobstronaut</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #0d0d1a;
+        color: #fff;
+        margin: 0;
+        padding: 0;
+        text-align: center;
+      }
+      header {
+        padding: 20px;
+      }
+      .container {
+        max-width: 640px;
+        margin: 24px auto;
+        padding: 16px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 12px;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      input, button {
+        padding: 10px;
+        border-radius: 6px;
+        border: none;
+      }
+      button {
+        background: #ff6600;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .banner { padding: 8px; border-radius: 6px; margin-top: 8px; }
+      .success { background: #e7f7ee; color: #000; }
+      .error { background: #fde8e8; color: #000; }
+      .info { background: #eef2ff; color: #000; }
+      .status { margin-top: 6px; font-size: 12px; opacity: .8; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🚀 Jobstronaut</h1>
+      <p>The universe is hiring — and it wants you.</p>
+    </header>
 
-  <style>
-    :root{
-      --bg:#0b0b16; --bg2:#0e0e22; --card:#14142a; --edge:#21214a;
-      --text:#e9e9ff; --muted:#a8a8c9; --accent:#ff7a00; --accent2:#ffb800;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; font:16px/1.55 Inter,system-ui,Segoe UI,Roboto,Arial;
-      color:var(--text);
-      background:
-        radial-gradient(1200px 800px at 10% -10%, #1a1a3a 0, transparent 70%),
-        radial-gradient(800px 600px at 90% 10%, #1a1030 0, transparent 70%),
-        linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
-    }
-    .container{
-      max-width:1200px; margin:0 auto; padding:38px 18px 48px;
-    }
-    .hero{
-      font-weight:800; font-size:36px; letter-spacing:0.3px; margin:0 0 20px;
-    }
-    .sub{
-      color:var(--muted); margin:0 0 26px; max-width:780px;
-    }
-    .grid{
-      display:grid; grid-template-columns:1.1fr .9fr; gap:30px;
-    }
-    @media (max-width:980px){
-      .grid{grid-template-columns:1fr}
-    }
-    .card{
-      background:linear-gradient(180deg,#161633,#101026);
-      border:1px solid var(--edge);
-      border-radius:22px; padding:26px 26px 20px;
-      box-shadow:0 16px 40px rgba(0,0,0,.45);
-      min-height:460px;
-    }
-    .card h2{margin:0 0 6px; font-size:22px}
-    .hint{color:var(--muted); margin:0 0 18px}
-    label{display:block; font-weight:600; margin:14px 0 8px}
-    input[type="file"],input[type="email"]{
-      width:100%; padding:12px 12px; border-radius:12px;
-      border:1px solid #2b2b56; background:#0f0f20; color:var(--text);
-    }
-    .row{display:flex; gap:12px; flex-wrap:wrap}
-    .btn{
-      display:inline-flex; align-items:center; gap:10px;
-      padding:12px 16px; border-radius:14px; font-weight:700;
-      background:#171733; color:var(--text); border:1px solid #2b2b4a;
-      cursor:pointer; user-select:none; text-decoration:none;
-    }
-    .btn:hover{border-color:#3b3b6a}
-    .btn-cta{
-      background:linear-gradient(90deg,var(--accent),var(--accent2));
-      color:#140a00; border:none;
-      box-shadow:0 4px 16px rgba(255,122,0,.25);
-    }
-    .meta{
-      margin-top:14px; font-size:12px; color:#8f8fb2;
-    }
-    footer{
-      margin-top:22px; font-size:12px; color:#8e8eaf;
-      display:flex; gap:12px; flex-wrap:wrap;
-    }
-    footer a{color:#c8c8ff; text-decoration:none}
-    .badge{
-      display:inline-block; padding:6px 10px; border-radius:999px;
-      background:rgba(255,122,0,.12); color:var(--accent);
-      border:1px solid rgba(255,122,0,.35); font-size:12px; font-weight:700;
-      margin-bottom:10px;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1 class="hero">JOBSTRONAUT V2</h1>
-    <p class="sub">The universe is hiring — and it wants you. Drop your resume, auto‑apply to matching roles, and let us co‑pilot the follow‑through.</p>
+```
+<div class="container">
+  <h2>Join the Waitlist</h2>
+  <form id="waitlist-form" action="https://jobstronaut-backend1.onrender.com/waitlist" method="POST">
+    <input type="email" name="email" placeholder="you@example.com" required />
+    <button type="submit">Join Waitlist</button>
+  </form>
+</div>
 
-    <div class="grid">
-      <!-- Left card: Upload -->
-      <section class="card">
-        <div class="badge">MVP</div>
-        <h2>Resume Upload</h2>
-        <p class="hint">Max 10 MB PDF is best for parsing.</p>
+<div class="container">
+  <h2>Upload Your Resume (PDF)</h2>
+  <form id="resume-form">
+    <label>Email (optional)</label>
+    <input type="email" id="email" placeholder="you@example.com" />
 
-        <label for="resumeInput">Resume (PDF)</label>
-        <input id="resumeInput" type="file" accept="application/pdf">
+    <label>PDF Resume</label>
+    <input type="file" id="resume" accept="application/pdf" required />
 
-        <label for="emailInput">Email (optional)</label>
-        <input id="emailInput" type="email" placeholder="you@example.com">
+    <button id="upload-btn" type="submit">Upload Resume</button>
+  </form>
 
-        <div class="row" style="margin-top:16px">
-          <button id="uploadBtn" class="btn btn-cta">✨ Upload & Submit</button>
-          <a class="btn" href="/apply.html">🛰️ Browse jobs (preview)</a>
-        </div>
+  <div id="banner" class="banner" style="display:none"></div>
+  <div id="status" class="status"></div>
+</div>
 
-        <div class="meta">Backend: <span id="beUrl">https://jobstronaut-backend1.onrender.com</span></div>
-      </section>
+<script>
+  const API_BASE = "https://jobstronaut-backend1.onrender.com";
+  const PRESIGN_ENDPOINT = "/s3/presign";
+  const COMPLETE_ENDPOINT = "/apply-complete";
+  const LOCKED_CONTENT_TYPE = "application/pdf";
 
-      <!-- Right card: Console -->
-      <section class="card">
-        <div class="badge">Console</div>
-        <h2>Command Console</h2>
-        <p class="hint">Join the waitlist, check system status, and jump into applying.</p>
-
-        <label for="waitlistEmail">Join waitlist</label>
-        <input id="waitlistEmail" type="email" placeholder="you@example.com">
-
-        <div class="row" style="margin-top:16px">
-          <button id="waitlistBtn" class="btn btn-cta">Join waitlist</button>
-          <button id="healthBtn" class="btn">Check system status</button>
-          <a class="btn" href="/apply.html">Open Apply</a>
-        </div>
-
-        <footer>
-          <a href="/privacy.html">Privacy</a>·
-          <a href="/terms.html">Terms</a>·
-          <a href="/sitemap.xml">Sitemap</a>
-        </footer>
-      </section>
-    </div>
-  </div>
-
-  <script>
-  const BACKEND = "https://jobstronaut-backend1.onrender.com";
-
-  // Upload flow: presign -> S3 -> apply-complete
-  async function uploadResume(file, email){
-    const presignRes = await fetch(`${BACKEND}/s3/presign`,{
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ filename:file.name, contentType:file.type||"application/pdf", size:file.size })
-    });
-    if(!presignRes.ok) throw new Error("presign_failed");
-    const { url, fields, key } = await presignRes.json();
-
-    const fd = new FormData();
-    Object.entries(fields).forEach(([k,v])=>fd.append(k,v));
-    fd.append("Content-Type", file.type||"application/pdf");
-    fd.append("file", file);
-
-    const s3Res = await fetch(url,{ method:"POST", body:fd });
-    if(!s3Res.ok) throw new Error("s3_upload_failed");
-
-    const doneRes = await fetch(`${BACKEND}/apply-complete`,{
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ filename:file.name, size:file.size, contentType:file.type||"application/pdf", email:(email||"").trim(), key })
-    });
-    if(!doneRes.ok) throw new Error("apply_complete_failed");
+  const $ = (s) => document.querySelector(s);
+  function setBanner(type, msg) {
+    const b = $("#banner");
+    b.style.display = "block";
+    b.className = "banner " + type;
+    b.textContent = msg;
+  }
+  function setStatus(msg) {
+    const s = $("#status");
+    if (s) s.textContent = msg;
   }
 
-  document.getElementById("uploadBtn").addEventListener("click", async ()=>{
-    const file = document.getElementById("resumeInput").files[0];
-    const email = document.getElementById("emailInput").value;
-    if(!file) return alert("Please choose a PDF first.");
-    try{
-      track('UploadStarted');
-      await uploadResume(file,email);
-      track('UploadSuccess',{ size:file.size, type:file.type });
-      alert("✅ Resume uploaded!");
-    }catch(err){
-      console.error(err); alert("Upload failed: "+err.message);
+  async function jsonFetch(url, opts = {}) {
+    const r = await fetch(url, opts);
+    if (!r.ok) {
+      const t = await r.text();
+      throw new Error(`HTTP ${r.status} ${r.statusText}: ${t}`);
     }
-  });
-
-  document.getElementById("waitlistBtn").addEventListener("click", async ()=>{
-    const email = document.getElementById("waitlistEmail").value;
-    if(!email) return alert("Enter your email");
-    try{
-      const res = await fetch(`${BACKEND}/waitlist`,{
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ email })
-      });
-      if(!res.ok) throw new Error("waitlist_failed");
-      track('WaitlistJoined');
-      alert("✅ Added to waitlist!");
-    }catch(err){ console.error(err); alert("Waitlist join failed: "+err.message); }
-  });
-
-  document.getElementById("healthBtn").addEventListener("click", async ()=>{
-    try{
-      const r = await fetch(`${BACKEND}/healthz`);
-      const j = await r.json();
-      track('HealthCheckClicked');
-      alert("Health: "+JSON.stringify(j));
-    }catch{ alert("Health check failed"); }
-  });
-
-  // If a stale Service Worker is interfering, offer a nuke option:
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.getRegistrations().then(rs=>{
-      // Uncomment to force-unregister during debugging:
-      // rs.forEach(r=>r.unregister());
-    });
+    return r.json();
   }
-  </script>
-</body>
+
+  async function uploadResume(file, email) {
+    if (!file) throw new Error("No file provided");
+
+    const { url, key, contentType } = await jsonFetch(API_BASE + PRESIGN_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: file.name, contentType: LOCKED_CONTENT_TYPE, email: email || null })
+    });
+
+    const putRes = await fetch(url, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": contentType || LOCKED_CONTENT_TYPE }
+    });
+    if (!putRes.ok) {
+      const err = await putRes.text();
+      console.error("S3 PUT failed", putRes.status, err);
+      throw new Error("s3_upload_failed");
+    }
+
+    await jsonFetch(API_BASE + COMPLETE_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email || null, filename: file.name, s3_key: key, content_type: contentType || LOCKED_CONTENT_TYPE })
+    });
+
+    return { key };
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = $("#resume-form");
+    const btn = $("#upload-btn");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const file = $("#resume").files?.[0];
+      const email = $("#email")?.value?.trim() || null;
+      try {
+        btn.disabled = true;
+        setBanner("info", "Uploading…");
+        setStatus("Starting upload…");
+        const { key } = await uploadResume(file, email);
+        setBanner("success", "✅ Resume uploaded!");
+        setStatus("S3 key: " + key);
+      } catch (err) {
+        console.error(err);
+        setBanner("error", "⚠️ Upload failed, please retry.");
+        setStatus(err.message || "Upload failed");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+</script>
+```
+
+  </body>
 </html>
 
