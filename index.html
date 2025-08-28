@@ -10,44 +10,68 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jobstronaut V2</title>
+  <title>JOBSTRONAUT V2</title>
   <style>
     :root{
-      --bg:#080c18;--bg2:#0d1224;--card:#0f1830;--ink:#e9efff;--muted:#a2b2d6;--accent:#ff8a34;--accent2:#2fd38a;--line:rgba(255,255,255,.09);
+      --bg:#0a0f1e; --bg2:#121a2f; --ring:rgba(255,255,255,.08);
+      --ink:#eef2ff; --muted:#9fb0d1; --line:rgba(255,255,255,.10);
+      --btn:#ff8a1f; --btn2:#2b3553; --chip:#ffb65c; --accent:#6aa7ff;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0;background:radial-gradient(1200px 700px at 10% -10%, #151f3d 10%, transparent 60%),linear-gradient(180deg,var(--bg),var(--bg2));color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
-    .wrap{max-width:1200px;margin:48px auto;padding:0 20px}
-    .hero{margin-bottom:24px}
-    .title{font-size:42px;font-weight:800;letter-spacing:.4px}
-    .tag{color:var(--muted);margin-top:6px}
+    body{
+      margin:0;
+      background:radial-gradient(1200px 700px at 15% -10%, #1a2447 10%, transparent 60%),
+                 linear-gradient(180deg,var(--bg),var(--bg2));
+      color:var(--ink);
+      font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif
+    }
 
+    /* Header */
+    .wrap{max-width:1200px;margin:56px auto;padding:0 24px}
+    .title{font-size:42px;font-weight:900;letter-spacing:.4px;margin:0 0 6px 0}
+    .tag{color:var(--muted);margin:0 0 24px 0}
+
+    /* Grid */
     .grid{display:grid;gap:24px;grid-template-columns:1fr}
-    @media(min-width:980px){.grid{grid-template-columns:1.1fr .9fr}}
+    @media(min-width:1000px){.grid{grid-template-columns:1.15fr .85fr}}
 
-    .card{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));border:1px solid var(--line);border-radius:18px;padding:22px 20px;box-shadow:0 18px 40px rgba(0,0,0,.35)}
-    .card h2{margin:0 0 8px 0;font-size:20px}
-    .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 10px;margin-bottom:10px}
+    /* Card */
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:24px 22px;
+      box-shadow:0 18px 40px rgba(0,0,0,.38)
+    }
+    .card h2{margin:0 0 6px 0;font-size:20px}
+    .badge{
+      display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
+      border:1px solid var(--ring);border-radius:999px;padding:4px 10px;margin-bottom:10px;
+      background:rgba(255,255,255,.03)
+    }
 
-    label{display:block;margin:10px 0 6px 2px;color:var(--muted);font-size:13px}
-    input[type="email"],input[type="file"]{width:100%;background:#0b1326;border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:10px 12px}
-    input[type="file"]{padding:8px 10px}
+    /* Form */
+    label{display:block;margin:12px 0 6px 2px;color:var(--muted);font-size:13px}
+    input[type="email"],input[type="file"]{
+      width:100%;background:#0d152a;border:1px solid var(--ring);color:var(--ink);
+      border-radius:12px;padding:12px
+    }
+    input[type="file"]{padding:10px}
 
-    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-    button{appearance:none;border:0;border-radius:12px;padding:12px 14px;font-weight:700;cursor:pointer}
-    .btn-primary{background:linear-gradient(135deg,#ff974d,#ff7f1f);color:#1a0d00}
-    .btn-secondary{background:transparent;border:1px solid var(--line);color:var(--ink)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    button{appearance:none;border:0;border-radius:12px;padding:12px 16px;font-weight:800;cursor:pointer}
+    .btn-primary{background:linear-gradient(135deg,#ffa14a,#ff861c);color:#1b0e00}
+    .btn-secondary{background:transparent;border:1px solid var(--ring);color:var(--ink)}
 
     .note{margin-top:10px;color:var(--muted);font-size:12px}
-    footer{margin:26px 0;color:var(--muted);font-size:12px;text-align:center}
+    footer{margin:28px 0;color:var(--muted);font-size:12px;text-align:center}
 
-    .banner{margin-top:12px;padding:10px 12px;border-radius:12px;border:1px solid var(--line)}
-    .banner.info{background:rgba(255,255,255,.06)}
-    .banner.success{background:rgba(47,211,138,.16);border-color:rgba(47,211,138,.35)}
-    .banner.error{background:rgba(255,79,79,.16);border-color:rgba(255,79,79,.35)}
+    .banner{margin-top:12px;padding:10px 12px;border-radius:12px;border:1px solid var(--ring)}
+    .banner.info{background:rgba(106,167,255,.10)}
+    .banner.success{background:rgba(47,211,138,.14);border-color:rgba(47,211,138,.35)}
+    .banner.error{background:rgba(255,79,79,.14);border-color:rgba(255,79,79,.35)}
     .status{margin-top:6px;color:var(--muted);font-size:12px}
-
     .mini{opacity:.85}
     a{color:var(--accent)}
   </style>
@@ -56,11 +80,11 @@
   <div class="wrap">
     <section class="hero">
       <div class="title">JOBSTRONAUT V2</div>
-      <div class="tag">The universe is hiring — and it wants you. Drop your resume, auto-apply to matching roles, and let us co‑pilot the follow‑through.</div>
+      <p class="tag">The universe is hiring — and it wants you. Drop your resume, auto-apply to matching roles, and let us co-pilot the follow-through.</p>
     </section>
 
     <section class="grid">
-      <!-- Left: Resume Upload -->
+      <!-- Left card: Resume Upload -->
       <div class="card">
         <div class="badge">MVP</div>
         <h2>Resume Upload</h2>
@@ -84,7 +108,7 @@
         <div id="status" class="status"></div>
       </div>
 
-      <!-- Right: Console / Waitlist -->
+      <!-- Right card: Console / Waitlist -->
       <div class="card">
         <div class="badge">Console</div>
         <h2>Command Console</h2>
@@ -109,7 +133,7 @@
 
   <script>
     // ===== Config =====
-    const API_BASE = "https://jobstronaut-backend1.onrender.com"; // set to your backend origin or "" if same origin
+    const API_BASE = "https://jobstronaut-backend1.onrender.com"; // set to backend origin or "" if same origin
     const PRESIGN_ENDPOINT = "/s3/presign";
     const COMPLETE_ENDPOINT = "/apply-complete";
     const LOCKED_CONTENT_TYPE = "application/pdf";
@@ -155,7 +179,7 @@
         }finally{ btn.disabled=false; }
       });
 
-      // Non-functional demo buttons
+      // demo buttons (non-functional for now)
       $('#browse-preview').addEventListener('click',()=>alert('Coming soon: job browser preview!'));
       $('#status-btn').addEventListener('click',()=>alert('System OK'));
       $('#open-apply').addEventListener('click',()=>alert('Opening apply flow soon…'));
