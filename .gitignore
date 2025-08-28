@@ -1,0 +1,17 @@
+# OS/editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# local backups / scratch
+*.backup.html
+*before-*.html
+*.local.*
+index.backup.html
+index.before-v2.html
+
+# build caches (if ever added)
+dist/
+build/
+.cache/
