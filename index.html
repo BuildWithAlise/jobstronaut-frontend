@@ -133,51 +133,67 @@
   <script>
   const BACKEND = "https://jobstronaut-backend1.onrender.com";
 
-  async function uploadResume(file, email){
-    // 1) Get presigned POST
-    const presignRes = await fetch(`${BACKEND}/s3/presign`, {
-      method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ filename:file.name, contentType:file.type||"application/pdf", size:file.size })
+// ---- Upload flow: /s3/presign -> POST to S3 (AES256 + Content-Type) ----
+async function uploadResume(file) {
+  try {
+    const note = document.getElementById("uploadNote");
+    if (note) note.textContent = "Uploading…";
+
+    // 1) presign
+    const presignRes = await fetch("/s3/presign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type || "application/octet-stream"
+      })
     });
-    if(!presignRes.ok) throw new Error("presign_failed");
-    const { url, fields, key } = await presignRes.json();
 
-    // 2) Upload to S3
-    const fd = new FormData();
-    Object.entries(fields).forEach(([k,v])=>fd.append(k,v));
-    fd.append("Content-Type", file.type||"application/pdf");
-    fd.append("x-amz-server-side-encryption","AES256");
-    fd.append("file", file);
-    const s3Res = await fetch(url, { method:"POST", body:fd });
-    if(!s3Res.ok) throw new Error("s3_upload_failed");
-
-    // 3) Notify backend
-    const doneRes = await fetch(`${BACKEND}/apply-complete`, {
-      method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ filename:file.name, size:file.size, contentType:(file.type||"application/pdf"), email:(email||"").trim(), key })
-    });
-    if(!doneRes.ok) throw new Error("apply_complete_failed");
-  }
-
-  document.getElementById("uploadBtn").addEventListener("click", async ()=>{
-    const file = document.getElementById("resumeInput").files[0];
-    const email = document.getElementById("emailInput").value;
-    if(!file) return alert("Please choose a PDF first.");
-    try{
-      track("UploadStarted");
-      await uploadResume(file,email);
-      track("UploadSuccess",{ size:file.size, type:file.type });
-      alert("✅ Resume uploaded!");
-    }catch(err){
-      console.error(err);
-      const map = {
-        presign_failed:"Could not reach backend (/s3/presign).",
-        s3_upload_failed:"S3 rejected the upload (check CORS).",
-        apply_complete_failed:"Could not notify backend (/apply-complete)."
-      };
-      alert("Upload failed: " + (map[err.message]||err.message));
+    if (!presignRes.ok) {
+      const t = await presignRes.text();
+      console.error("Presign failed:", presignRes.status, t);
+      if (note) note.textContent = "❌ Presign failed — see Console.";
+      return;
     }
-  });
+
+    const { url, fields } = await presignRes.json();
+    console.log("presign:", { url, fields });
+
+    // 2) build form data exactly as policy expects
+    const fd = new FormData();
+    Object.entries(fields).forEach(([k, v]) => fd.append(k, v));
+    fd.append("Content-Type", file.type || "application/octet-stream");
+    fd.append("x-amz-server-side-encryption", "AES256");
+    fd.append("file", file);
+
+    // 3) upload to S3
+    const up = await fetch(url, { method: "POST", body: fd });
+
+    console.log("status:", up.status);
+    console.log("x-amz-bucket-region:", up.headers.get("x-amz-bucket-region"));
+
+    const bodyText = await up.text();
+    if (!up.ok) {
+      console.error("Upload failed text:", bodyText);
+
+      const code = (bodyText.match(/<Code>([^<]+)<\/Code>/i) || [])[1] || "";
+      const msg  = (bodyText.match(/<Message>([^<]+)<\/Message>/i) || [])[1] || "";
+      console.log("S3 Error Code:", code);
+      console.log("S3 Error Message:", msg);
+
+      if (note) note.textContent = `❌ Upload failed — ${code || 'see Console'}${msg ? `: ${msg}` : ''}`;
+      return;
+    }
+
+    console.log("✅ Upload successful", bodyText);
+    if (note) note.textContent = "✅ Upload successful!";
+  } catch (err) {
+    console.error("Upload error:", err);
+    const note = document.getElementById("uploadNote");
+    if (note) note.textContent = "❌ Upload crashed — see Console.";
+  }
+}
+
 
   document.getElementById("waitlistBtn").addEventListener("click", async ()=>{
     const email = (document.getElementById("waitlistEmail").value||"").trim();
