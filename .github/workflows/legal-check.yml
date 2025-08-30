@@ -1,0 +1,51 @@
+name: Legal Files Check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify-legal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Verify required legal files exist
+        run: |
+          FAIL=0
+
+          # Must have LICENSE (root symlink is fine) OR LICENSE.txt
+          if [ ! -f "LICENSE" ] && [ ! -f "LICENSE.txt" ]; then
+            echo "❌ Missing LICENSE or LICENSE.txt at repo root"
+            FAIL=1
+          fi
+
+          # Must have Code of Conduct & Security at root (linked or copied)
+          for f in CODE_OF_CONDUCT.md SECURITY.md CONTRIBUTING.md; do
+            if [ ! -f "$f" ]; then
+              echo "❌ Missing $f at repo root"
+              FAIL=1
+            fi
+          done
+
+          # Ensure /legal folder exists
+          if [ ! -d "legal" ]; then
+            echo "❌ Missing legal/ folder"
+            FAIL=1
+          else
+            # Verify the 6 canonical docs live in /legal
+            for f in LICENSE.txt README.md CONTRIBUTING.md NDA.txt CODE_OF_CONDUCT.md SECURITY.md; do
+              if [ ! -f "legal/$f" ]; then
+                echo "❌ Missing legal/$f"
+                FAIL=1
+              fi
+            done
+          fi
+
+          if [ "$FAIL" -ne 0 ]; then
+            echo "❌ Legal check failed."
+            exit 1
+          fi
+
+          echo "✅ All legal files present."
