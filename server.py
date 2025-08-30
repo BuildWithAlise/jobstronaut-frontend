@@ -1,20 +1,31 @@
+"""
+Jobstronaut Backend – Diagnostic & Upload Service
+-------------------------------------------------
+Project: Jobstronaut (Neptune Inc.)
+Owner: Commander thuggathegreatest (Alise McNiel)
+File: server.py
+Date: 2025-08-30
+Copyright © 2025 Neptune Inc. All Rights Reserved.
+
+This software and associated documentation files (the "Software") are the
+confidential and proprietary information of Neptune Inc. Unauthorized copying,
+modification, distribution, or disclosure is prohibited.
+
+Trademark Notice: Jobstronaut™ is a trademark of Neptune Inc.
+"""
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import boto3
-import os
-import time
+import boto3, os, datetime, botocore
 from sqlalchemy import create_engine, text
 
 app = Flask(__name__)
-# Allow the static site (and any origin for MVP). Tighten in v2 if you want.
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# 10MB max (frontend also enforces)
+# 10MB max upload
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 
-# --- Environment ---
-# Required on Render: DATABASE_URL, AWS_BUCKET_NAME, AWS_REGION (default us-east-1),
-# AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SECRET_KEY
+# --- Environment vars ---
 DATABASE_URL = os.environ["DATABASE_URL"]
 AWS_BUCKET_NAME = os.environ["AWS_BUCKET_NAME"]
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
@@ -23,93 +34,57 @@ AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 s3 = boto3.client("s3", region_name=AWS_REGION)
 
-# --- Health ---
+# --- Health check ---
 @app.get("/healthz")
 def healthz():
     return jsonify(ok=True)
 
-# --- S3 Presign ---
-@app.post("/s3/presign")
-def s3_presign():
-    """Generate a presigned POST so the browser can upload directly to S3.
-    Expects multipart/form-data with fields: filename, content_type
-    Returns JSON with: url, fields, key
-    """
-    filename = (request.form.get("filename") or "").strip()
-    content_type = (request.form.get("content_type") or "application/octet-stream").strip()
-    if not filename:
-        return jsonify(error="filename required"), 400
-
-    ts = int(time.time())
-    key = f"resumes/{ts}-{filename}"
-
+# --- One-time diagnostic route ---
+@app.get("/diag/s3")
+def diag_s3():
+    bucket = AWS_BUCKET_NAME
+    region_env = AWS_REGION
+    access = os.getenv("AWS_ACCESS_KEY_ID")
+    secret_set = bool(os.getenv("AWS_SECRET_ACCESS_KEY"))
+    
     try:
-        presigned = s3.generate_presigned_post(
-            Bucket=AWS_BUCKET_NAME,
-            Key=key,
-            Fields={"Content-Type": content_type},
-            Conditions=[
-                {"Content-Type": content_type},
-                ["content-length-range", 1, 10 * 1024 * 1024],  # 10MB
-            ],
-            ExpiresIn=60,  # seconds to start the upload
-        )
+        loc = s3.get_bucket_location(Bucket=bucket).get("LocationConstraint")
+        bucket_region = loc or "us-east-1"
+        s3.head_bucket(Bucket=bucket)
+
+        return jsonify({
+            "ok": True,
+            "time_utc": datetime.datetime.utcnow().isoformat() + "Z",
+            "bucket": bucket,
+            "AWS_REGION_env": region_env,
+            "bucket_region_actual": bucket_region,
+            "has_access_key": bool(access),
+            "has_secret_key": secret_set
+        })
+    except botocore.exceptions.ClientError as e:
+        code = e.response.get("Error", {}).get("Code")
+        msg = e.response.get("Error", {}).get("Message")
+        headers = e.response.get("ResponseMetadata", {}).get("HTTPHeaders", {}) or {}
+        return jsonify({
+            "ok": False,
+            "bucket": bucket,
+            "AWS_REGION_env": region_env,
+            "error_code": code,
+            "error_message": msg,
+            "aws_headers": {
+                "x-amz-bucket-region": headers.get("x-amz-bucket-region"),
+                "x-amz-id-2": headers.get("x-amz-id-2"),
+                "x-amz-request-id": headers.get("x-amz-request-id")
+            }
+        }), 500
     except Exception as e:
-        return jsonify(error=str(e)), 500
+        return jsonify({
+            "ok": False,
+            "bucket": bucket,
+            "AWS_REGION_env": region_env,
+            "error": str(e)
+        }), 500
 
-    presigned["key"] = key
-    return jsonify(presigned)
-
-# --- Apply Complete ---
-@app.post("/apply-complete")
-def apply_complete():
-    """Persist a minimal marketing record after the S3 upload succeeds.
-    Expects JSON: { email, filename, content_type, size, s3_key }
-    """
-    data = request.get_json(force=True, silent=True) or {}
-    email = (data.get("email") or "").strip()
-    filename = (data.get("filename") or "").strip()
-    content_type = (data.get("content_type") or "application/pdf").strip()
-    size = int(data.get("size") or 0)
-    s3_key = (data.get("s3_key") or "").strip()
-
-    if not filename or not s3_key:
-        return jsonify(error="filename and s3_key required"), 400
-
-    try:
-        with engine.begin() as conn:
-            # Create table if it doesn't exist (safe, fast in Postgres)
-            conn.execute(text(
-                """
-                CREATE TABLE IF NOT EXISTS applications (
-                  id SERIAL PRIMARY KEY,
-                  filename TEXT,
-                  size INTEGER,
-                  content_type TEXT,
-                  email TEXT,
-                  s3_key TEXT,
-                  created_at TIMESTAMP DEFAULT NOW()
-                )
-                """
-            ))
-            conn.execute(text(
-                """
-                INSERT INTO applications (filename, size, content_type, email, s3_key)
-                VALUES (:filename, :size, :ctype, :email, :s3_key)
-                """
-            ), {
-                "filename": filename,
-                "size": size,
-                "ctype": content_type,
-                "email": email,
-                "s3_key": s3_key,
-            })
-    except Exception as e:
-        return jsonify(ok=False, error=str(e)), 500
-
-    return jsonify(ok=True)
-
-# Gunicorn entrypoint is: server:app
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=10000)
 
