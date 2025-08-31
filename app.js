@@ -3,8 +3,14 @@
   const API_BASE = "https://jobstronaut-backend1.onrender.com"; // no trailing slash
   const api = (p) => `${API_BASE}${p.startsWith("/") ? p : "/" + p}`;
 
+  // loader beacon
+  const APP_VER = "v3";
+  console.log(`[jobstronaut] app.js ${APP_VER} loaded`);
+
   // ===== utils =====
   function track(e, p) { try { if (window.plausible) plausible(e, { props: p }); } catch (_) {} }
+  const qs  = (sel, root=document) => root.querySelector(sel);
+  const qsa = (sel, root=document) => [...root.querySelectorAll(sel)];
 
   function sniffType(file) {
     if (file && file.type) return file.type;
@@ -18,14 +24,14 @@
     return "application/octet-stream";
   }
 
-  // ===== main upload =====
+  // ===== resume upload =====
   async function uploadResume(file) {
     const note = document.getElementById("uploadNote");
     const contentType = sniffType(file);
     if (note) note.textContent = "Uploading…";
 
     try {
-      // 1) PRESIGN
+      // 1) presign
       const pre = await fetch(api("/s3/presign"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -36,52 +42,35 @@
       console.log("[presign] status:", pre.status, "| ct:", preCT);
       console.log("[presign] body:", preText.slice(0, 300));
 
-      if (!pre.ok) {
-        if (note) note.textContent = "❌ Presign failed — see Console.";
-        return;
-      }
+      if (!pre.ok) { if (note) note.textContent = "❌ Presign failed — see Console."; return; }
 
-      let data;
-      try { data = JSON.parse(preText); }
-      catch (e) {
-        console.error("Presign not JSON:", e, preText);
-        if (note) note.textContent = "❌ Presign not JSON.";
-        return;
-      }
+      let data; try { data = JSON.parse(preText); }
+      catch (e) { console.error("Presign not JSON:", e, preText); if (note) note.textContent = "❌ Presign not JSON."; return; }
 
       const { url, fields, key } = data || {};
-      if (!url) {
-        console.error("Presign missing url:", data);
-        if (note) note.textContent = "❌ Presign missing url.";
-        return;
-      }
+      if (!url) { console.error("Presign missing url:", data); if (note) note.textContent = "❌ Presign missing url."; return; }
 
-      // 2) UPLOAD (handles POST or PUT)
+      // 2) upload (POST or PUT)
       let up, upText;
-
       if (fields && typeof fields === "object") {
-        // ---- A) Presigned POST
+        // Presigned POST
         const fd = new FormData();
         Object.entries(fields).forEach(([k, v]) => fd.append(k, v)); // policy fields first
-        fd.append("Content-Type", contentType);
+        fd.append("Content-Type", sniffType(file));
         fd.append("x-amz-server-side-encryption", "AES256");
         fd.append("file", file);
-
         up = await fetch(url, { method: "POST", body: fd });
         upText = await up.text();
-
       } else {
-        // ---- B) Presigned PUT (single URL)
+        // Presigned PUT
         const tryPut = async (headers) => {
           const r = await fetch(url, { method: "PUT", headers, body: file });
           const t = await r.text();
           return { r, t };
         };
-
-        // Start with AES256 (matches your IAM); if signature didn't include it, retry once without.
         let headers = { "Content-Type": contentType, "x-amz-server-side-encryption": "AES256" };
         ({ r: up, t: upText } = await tryPut(headers));
-        if (!up.ok) {
+        if (!up.ok) {                      // retry once without AES256 if signature didn’t include it
           delete headers["x-amz-server-side-encryption"];
           ({ r: up, t: upText } = await tryPut(headers));
         }
@@ -96,12 +85,12 @@
         return;
       }
 
-      // 3) OPTIONAL notify backend
+      // 3) optional notify
       fetch(api("/apply-complete"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename: file.name, size: file.size, contentType, key })
-      }).catch(() => {});
+      }).catch(()=>{});
 
       if (note) note.textContent = "✅ Upload successful!";
       track("resume_upload_success", { size: file.size, type: contentType });
@@ -110,39 +99,112 @@
       if (note) note.textContent = "❌ Upload crashed — see Console.";
     }
   }
-
   // expose for Console/manual trigger
   window.uploadResume = uploadResume;
 
-  // ===== bind button robustly =====
+  // ===== waitlist join =====
+  async function joinWaitlist(email) {
+    const note = document.getElementById("waitlistNote");
+    if (!email || !/\S+@\S+\.\S+/.test(email)) { alert("Enter a valid email."); return; }
+    note && (note.textContent = "Submitting…");
+    try {
+      const r = await fetch(api("/waitlist/join"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const t = await r.text();
+      if (!r.ok) { console.error("[waitlist] failed:", r.status, t); note && (note.textContent = "❌ Failed — see Console"); return; }
+      note && (note.textContent = "✅ Joined! Check your email.");
+      console.log("[waitlist] ok:", t.slice(0, 200));
+    } catch (e) {
+      console.error("[waitlist] crash:", e);
+      note && (note.textContent = "❌ Failed — see Console");
+    }
+  }
+  window.joinWaitlist = joinWaitlist;
+
+  // ===== check status =====
+  async function checkStatus() {
+    const candidates = ["/status", "/system/status", "/health", "/api/health"];
+    for (const path of candidates) {
+      try {
+        const r = await fetch(api(path));
+        if (r.ok) {
+          const ct = r.headers.get("content-type") || "";
+          const body = await r.text();
+          console.log("[status]", path, "ct:", ct, "| body:", body.slice(0, 400));
+          alert(`System status ✓ (${path})`);
+          return;
+        }
+      } catch {}
+    }
+    alert("Status endpoint not available yet.");
+  }
+  window.checkStatus = checkStatus;
+
+  // ===== bind buttons (robust selectors) =====
   window.addEventListener("DOMContentLoaded", () => {
-    const findUploadButton = () =>
+    // Resume upload
+    const uploadBtn =
       document.getElementById("uploadButton") ||
       document.getElementById("uploadBtn") ||
-      [...document.querySelectorAll("button,[role='button'],input[type='button'],input[type='submit']")]
+      qsa("button,[role='button'],input[type='button'],input[type='submit']")
         .find(el => /upload\s*&?\s*submit/i.test(el.textContent || "") || /upload/i.test(el.value || ""));
 
-    const findFileInput = () =>
+    const fileInput =
       document.getElementById("resumeFile") ||
       document.getElementById("resumeInput") ||
-      document.querySelector("input[type='file']");
+      qs("input[type='file']");
 
-    const btn  = findUploadButton();
-    const file = findFileInput();
+    console.log("[jobstronaut] binding: uploadBtn:", uploadBtn, "fileInput:", fileInput);
 
-    console.log("[jobstronaut] app.js loaded; btn:", btn, "file:", file);
-
-    if (btn && file) {
-      btn.type = "button";
-      btn.addEventListener("click", (e) => {
+    if (uploadBtn && fileInput) {
+      uploadBtn.type = "button";
+      uploadBtn.addEventListener("click", (e) => {
         e.preventDefault();
-        const f = file.files && file.files[0];
+        const f = fileInput.files && fileInput.files[0];
         if (!f) { alert("Please choose a file first."); return; }
         uploadResume(f);
       });
     }
 
-    // nuke stale service workers that could cache old JS
+    // Waitlist (email field + button)
+    const waitlistEmail =
+      document.getElementById("waitlistEmail") ||
+      // fallback: the first input[type=email] inside the right card
+      qs("div:has(> h3, > h2):has(> *:matches(#join\\ waitlist, .join-waitlist, .console)) input[type='email']") ||
+      qs("input[type='email']");
+
+    const waitlistBtn =
+      document.getElementById("joinWaitlistBtn") ||
+      qsa("button,[role='button'],input[type='button'],input[type='submit']")
+        .find(el => /join\s*waitlist/i.test(el.textContent || ""));
+
+    console.log("[jobstronaut] binding: waitlistBtn:", waitlistBtn, "email:", waitlistEmail);
+
+    if (waitlistBtn && waitlistEmail) {
+      waitlistBtn.type = "button";
+      waitlistBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        joinWaitlist(waitlistEmail.value.trim());
+      });
+    }
+
+    // Check status
+    const statusBtn =
+      document.getElementById("checkStatusBtn") ||
+      qsa("button,[role='button'],input[type='button'],input[type='submit']")
+        .find(el => /check\s*system\s*status/i.test(el.textContent || ""));
+
+    console.log("[jobstronaut] binding: statusBtn:", statusBtn);
+
+    if (statusBtn) {
+      statusBtn.type = "button";
+      statusBtn.addEventListener("click", (e) => { e.preventDefault(); checkStatus(); });
+    }
+
+    // kill stale SW caching old JS
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistrations?.().then(rs => rs.forEach(r => r.unregister()));
     }
