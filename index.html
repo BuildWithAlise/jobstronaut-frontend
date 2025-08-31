@@ -142,55 +142,56 @@ async function uploadResume(file) {
   if (note) note.textContent = "Uploading…";
 
   try {
-    // 1) presign from backend
-    const presignRes = await fetch(api("/s3/presign"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: file.name, contentType })
-    });
+// 1) presign
+const presignRes = await fetch(api("/s3/presign"), {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ filename: file.name, contentType })
+});
 
-    const presignCT  = presignRes.headers.get("content-type") || "";
-    const presignRaw = await presignRes.text();
-    console.log("[presign] status:", presignRes.status, "| ct:", presignCT);
-    console.log("[presign] body:", presignRaw.slice(0, 300));
+const presignCT  = presignRes.headers.get("content-type") || "";
+const presignRaw = await presignRes.text();
+console.log("[presign] status:", presignRes.status, "| ct:", presignCT);
+console.log("[presign] body:", presignRaw.slice(0, 300));
 
-    if (!presignRes.ok) { if (note) note.textContent = "❌ Presign failed — see Console."; return; }
+if (!presignRes.ok) { if (note) note.textContent = "❌ Presign failed — see Console."; return; }
 
-    let presign;
-    try { presign = JSON.parse(presignRaw); }
-    catch (e) { console.error("Presign JSON parse failed:", e, presignRaw); if (note) note.textContent = "❌ Presign not JSON."; return; }
+let presign;
+try { presign = JSON.parse(presignRaw); }
+catch (e) { console.error("Presign JSON parse failed:", e, presignRaw); if (note) note.textContent = "❌ Presign not JSON."; return; }
 
-    const { url, fields, key } = presign || {};
-    if (!url || !fields) { console.error("Presign missing url/fields:", presign); if (note) note.textContent="❌ Presign missing fields."; return; }
+const { url, fields, key } = presign || {};
+if (!url || !fields) { console.error("Presign missing url/fields:", presign); if (note) note.textContent="❌ Presign missing fields."; return; }
 
-    // 2) S3 form-data (policy fields first)
-    const fd = new FormData();
-    Object.entries(fields).forEach(([k,v]) => fd.append(k, v));
-    fd.append("Content-Type", contentType);
-    fd.append("x-amz-server-side-encryption", "AES256");
-    fd.append("file", file);
+// 2) build S3 form (policy fields first)
+const fd = new FormData();
+Object.entries(fields).forEach(([k,v]) => fd.append(k, v));
+fd.append("Content-Type", contentType);
+fd.append("x-amz-server-side-encryption", "AES256");
+fd.append("file", file);
 
-    // 3) POST to S3
-    const up = await fetch(url, { method:"POST", body: fd });
-    const upText = await up.text();
-    console.log("[upload] status:", up.status, "| region:", up.headers.get("x-amz-bucket-region"));
+// 3) POST to S3
+const up = await fetch(url, { method: "POST", body: fd });
+const upText = await up.text();
+console.log("[upload] status:", up.status, "| region:", up.headers.get("x-amz-bucket-region"));
 
-    if (!up.ok) {
-      const code = (upText.match(/<Code>([^<]+)<\/Code>/i) || [])[1] || "";
-      const msg  = (upText.match(/<Message>([^<]+)<\/Message>/i) || [])[1] || "";
-      console.error("[upload] failed:", code, msg, upText);
-      if (note) note.textContent = `❌ Upload failed — ${code || 'see Console'}${msg?`: ${msg}`:''}`;
-      return;
-    }
+if (!up.ok) {
+  const code = (upText.match(/<Code>([^<]+)<\/Code>/i) || [])[1] || "";
+  const msg  = (upText.match(/<Message>([^<]+)<\/Message>/i) || [])[1] || "";
+  console.error("[upload] failed:", code, msg, upText);
+  if (note) note.textContent = `❌ Upload failed — ${code || 'see Console'}${msg?`: ${msg}`:''}`;
+  return;
+}
 
-    // 4) optional: notify backend (same base)
-    fetch(api("/apply-complete"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: file.name, size: file.size, contentType, key })
-    }).catch(()=>{});
+// 4) ✅ now notify backend (AFTER success)
+fetch(api("/apply-complete"), {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ filename: file.name, size: file.size, contentType, key })
+}).catch(()=>{});
 
-    if (note) note.textContent = "✅ Upload successful!";
+if (note) note.textContent = "✅ Upload successful!";
+
   } catch (err) {
     console.error("Upload crash:", err);
     if (note) note.textContent = "❌ Upload crashed — see Console.";
