@@ -47,16 +47,19 @@
       let data; try { data = JSON.parse(preText); }
       catch (e) { console.error("Presign not JSON:", e, preText); if (note) note.textContent = "❌ Presign not JSON."; return; }
 
-   const url = (data && (data.url || data.uploadUrl)) || "";
-const fields = data && data.fields;
-const key = data && (data.key || data.objectKey || data.Key);
+ // after: let data; try { data = JSON.parse(preText); } catch (...) { ... }
+
+const url     = (data && (data.url || data.uploadUrl)) || "";
+const fields  = (data && data.fields) || null;
+const key     = (data && (data.key || data.Key || data.objectKey)) || "";
 const objectUrl = data && (data.objectUrl || data.objectURL);
 
-if (!url) { 
-  console.error("Presign missing url:", data); 
+if (!url) {
+  console.error("Presign missing url:", data);
   if (note) note.textContent = "❌ Presign missing url.";
   return;
 }
+
 if (/your-bucket-name/i.test(url)) {
   console.error("Presign returned placeholder bucket. Fix backend S3_BUCKET.");
   if (note) note.textContent = "❌ Backend not configured (bucket placeholder).";
