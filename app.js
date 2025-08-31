@@ -57,7 +57,7 @@
         };
         let headers = { 'Content-Type': contentType, 'x-amz-server-side-encryption': 'AES256' };
         ({ r: up, t: upText } = await tryPut(headers));
-        if (!up.ok) {                     // retry once without AES header if signature didn't include it
+        if (!up.ok) {
           delete headers['x-amz-server-side-encryption'];
           ({ r: up, t: upText } = await tryPut(headers));
         }
@@ -87,7 +87,7 @@
     }
   }
 
-  // expose for debugging if needed
+  // expose for debugging
   window.uploadResume = uploadResume;
 
   // attach listeners
@@ -103,7 +103,7 @@
         uploadResume(f);
       });
     }
-    // kill any stale SW that might serve old JS
+    // clear any stale SW that might serve old JS
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations?.().then(rs => rs.forEach(r => r.unregister()));
     }
