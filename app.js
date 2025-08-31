@@ -44,14 +44,15 @@
 
       if (!pre.ok) { if (note) note.textContent = "❌ Presign failed — see Console."; return; }
 
-      let data; try { data = JSON.parse(preText); }
-      catch (e) { console.error("Presign not JSON:", e, preText); if (note) note.textContent = "❌ Presign not JSON."; return; }
+     // ...after we fetched presign and did:
+let data;
+try { data = JSON.parse(preText); }
+catch (e) { console.error("Presign not JSON:", e, preText); if (note) note.textContent = "❌ Presign not JSON."; return; }
 
- // after: let data; try { data = JSON.parse(preText); } catch (...) { ... }
-
-const url     = (data && (data.url || data.uploadUrl)) || "";
-const fields  = (data && data.fields) || null;
-const key     = (data && (data.key || data.Key || data.objectKey)) || "";
+// ✅ add this block exactly here:
+const url       = (data && (data.url || data.uploadUrl)) || "";
+const fields    = (data && data.fields) || null;
+const key       = (data && (data.key || data.Key || data.objectKey)) || "";
 const objectUrl = data && (data.objectUrl || data.objectURL);
 
 if (!url) {
@@ -59,6 +60,11 @@ if (!url) {
   if (note) note.textContent = "❌ Presign missing url.";
   return;
 }
+// (optional) debug
+console.log("[presign] chosen url:", url);
+
+// ...then the existing upload code runs:
+// if (fields) { // presigned POST ... } else { // presigned PUT using `url` ... }
 
 if (/your-bucket-name/i.test(url)) {
   console.error("Presign returned placeholder bucket. Fix backend S3_BUCKET.");
