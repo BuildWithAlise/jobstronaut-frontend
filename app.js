@@ -1,11 +1,12 @@
 (() => {
-  // --- config ---
+  // ===== config =====
   const API_BASE = "https://jobstronaut-backend1.onrender.com"; // no trailing slash
-  const api = (p) => `${API_BASE}${p.startsWith("/") ? p : "/"+p}`;
+  const api = (p) => `${API_BASE}${p.startsWith("/") ? p : "/" + p}`;
 
-  // --- utils ---
+  // ===== utils =====
   function track(e, p) { try { if (window.plausible) plausible(e, { props: p }); } catch (_) {} }
-  function sniffType(file){
+
+  function sniffType(file) {
     if (file && file.type) return file.type;
     const n = (file?.name || "").toLowerCase();
     if (n.endsWith(".pdf"))  return "application/pdf";
@@ -17,50 +18,70 @@
     return "application/octet-stream";
   }
 
-  // --- main upload ---
-  async function uploadResume(file){
+  // ===== main upload =====
+  async function uploadResume(file) {
     const note = document.getElementById("uploadNote");
     const contentType = sniffType(file);
-    if (note) note.textContent = "Uploading...";
+    if (note) note.textContent = "Uploading…";
 
     try {
-      // 1) presign
+      // 1) PRESIGN
       const pre = await fetch(api("/s3/presign"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename: file.name, contentType })
       });
+      const preCT = pre.headers.get("content-type") || "";
       const preText = await pre.text();
-      if (!pre.ok) { console.error("Presign failed:", pre.status, preText); if (note) note.textContent = "❌ Presign failed — see Console."; return; }
+      console.log("[presign] status:", pre.status, "| ct:", preCT);
+      console.log("[presign] body:", preText.slice(0, 300));
+
+      if (!pre.ok) {
+        if (note) note.textContent = "❌ Presign failed — see Console.";
+        return;
+      }
 
       let data;
       try { data = JSON.parse(preText); }
-      catch { console.error("Presign not JSON:", preText); if (note) note.textContent = "❌ Presign not JSON."; return; }
+      catch (e) {
+        console.error("Presign not JSON:", e, preText);
+        if (note) note.textContent = "❌ Presign not JSON.";
+        return;
+      }
 
       const { url, fields, key } = data || {};
-      if (!url) { console.error("Presign missing url:", data); if (note) note.textContent = "❌ Presign missing url."; return; }
+      if (!url) {
+        console.error("Presign missing url:", data);
+        if (note) note.textContent = "❌ Presign missing url.";
+        return;
+      }
 
-      // 2) upload (POST or PUT)
+      // 2) UPLOAD (handles POST or PUT)
       let up, upText;
+
       if (fields && typeof fields === "object") {
-        // Presigned POST
+        // ---- A) Presigned POST
         const fd = new FormData();
-        Object.entries(fields).forEach(([k,v]) => fd.append(k, v));
+        Object.entries(fields).forEach(([k, v]) => fd.append(k, v)); // policy fields first
         fd.append("Content-Type", contentType);
         fd.append("x-amz-server-side-encryption", "AES256");
         fd.append("file", file);
+
         up = await fetch(url, { method: "POST", body: fd });
         upText = await up.text();
+
       } else {
-        // Presigned PUT
+        // ---- B) Presigned PUT (single URL)
         const tryPut = async (headers) => {
           const r = await fetch(url, { method: "PUT", headers, body: file });
           const t = await r.text();
           return { r, t };
         };
+
+        // Start with AES256 (matches your IAM); if signature didn't include it, retry once without.
         let headers = { "Content-Type": contentType, "x-amz-server-side-encryption": "AES256" };
         ({ r: up, t: upText } = await tryPut(headers));
-        if (!up.ok) {  // retry once without AES header if signature didn't include it
+        if (!up.ok) {
           delete headers["x-amz-server-side-encryption"];
           ({ r: up, t: upText } = await tryPut(headers));
         }
@@ -75,26 +96,25 @@
         return;
       }
 
-      // 3) notify (optional)
+      // 3) OPTIONAL notify backend
       fetch(api("/apply-complete"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename: file.name, size: file.size, contentType, key })
-      }).catch(()=>{});
+      }).catch(() => {});
 
       if (note) note.textContent = "✅ Upload successful!";
       track("resume_upload_success", { size: file.size, type: contentType });
     } catch (err) {
       console.error("Upload crash:", err);
-      const note = document.getElementById("uploadNote");
       if (note) note.textContent = "❌ Upload crashed — see Console.";
     }
   }
 
-  // expose explicitly
+  // expose for Console/manual trigger
   window.uploadResume = uploadResume;
 
-  // --- bind the button robustly ---
+  // ===== bind button robustly =====
   window.addEventListener("DOMContentLoaded", () => {
     const findUploadButton = () =>
       document.getElementById("uploadButton") ||
@@ -122,7 +142,7 @@
       });
     }
 
-    // clear any stale SW
+    // nuke stale service workers that could cache old JS
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistrations?.().then(rs => rs.forEach(r => r.unregister()));
     }
