@@ -47,21 +47,22 @@
       let data; try { data = JSON.parse(preText); }
       catch (e) { console.error("Presign not JSON:", e, preText); if (note) note.textContent = "❌ Presign not JSON."; return; }
 
-      const { url, fields, key } = data || {};
-      if (!url) { console.error("Presign missing url:", data); if (note) note.textContent = "❌ Presign missing url."; return; }
+   const url = (data && (data.url || data.uploadUrl)) || "";
+const fields = data && data.fields;
+const key = data && (data.key || data.objectKey || data.Key);
+const objectUrl = data && (data.objectUrl || data.objectURL);
 
-      // 2) upload (POST or PUT)
-      let up, upText;
-      if (fields && typeof fields === "object") {
-        // Presigned POST
-        const fd = new FormData();
-        Object.entries(fields).forEach(([k, v]) => fd.append(k, v)); // policy fields first
-        fd.append("Content-Type", sniffType(file));
-        fd.append("x-amz-server-side-encryption", "AES256");
-        fd.append("file", file);
-        up = await fetch(url, { method: "POST", body: fd });
-        upText = await up.text();
-      } else {
+if (!url) { 
+  console.error("Presign missing url:", data); 
+  if (note) note.textContent = "❌ Presign missing url.";
+  return;
+}
+if (/your-bucket-name/i.test(url)) {
+  console.error("Presign returned placeholder bucket. Fix backend S3_BUCKET.");
+  if (note) note.textContent = "❌ Backend not configured (bucket placeholder).";
+  return;
+}
+else {
         // Presigned PUT
         const tryPut = async (headers) => {
           const r = await fetch(url, { method: "PUT", headers, body: file });
