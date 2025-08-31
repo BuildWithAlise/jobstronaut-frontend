@@ -130,81 +130,99 @@
     </div>
   </div>
 
-<script>
-/* === config === */
-const API_BASE = "https://jobstronaut-backend1.onrender.com";  // no trailing slash
-const api = (p) => `${API_BASE}${p.startsWith("/") ? p : "/"+p}`;
+  <script>
+  const BACKEND = "https://jobstronaut-backend1.onrender.com";
 
-/* analytics helper (safe no-op if plausible isn't present) */
-function track(e, p){ try{ if (window.plausible) plausible(e, { props:p }); }catch(_){} }
-
-/* wire buttons after DOM is ready */
-document.addEventListener("DOMContentLoaded", ()=>{
-  const btn  = document.getElementById("uploadButton") || document.getElementById("uploadBtn");
-  const file = document.getElementById("resumeFile")   || document.getElementById("resumeInput");
-  if (btn && file) {
-    btn.addEventListener("click", (e)=>{
-      e.preventDefault();
-      const f = file.files && file.files[0];
-      if (!f) { alert("Please choose a file first."); return; }
-      uploadResume(f);
-    });
-  }
-});
-
-/* main upload */
-async function uploadResume(file){
-  const note = document.getElementById("uploadNote");
-  const contentType = file?.type || "application/octet-stream";
-  if (note) note.textContent = "Uploading…";
+// ---- Upload flow: /s3/presign -> POST to S3 (AES256 + Content-Type) ----
+async function uploadResume(file) {
   try {
-    // 1) presign from backend
-    const presignRes = await fetch(api("/s3/presign"), {
+    const note = document.getElementById("uploadNote");
+    if (note) note.textContent = "Uploading…";
+
+    // 1) presign
+    const presignRes = await fetch("/s3/presign", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: file.name, contentType })
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type || "application/octet-stream"
+      })
     });
-    const presignRaw = await presignRes.text();
-    if (!presignRes.ok) { console.error("Presign failed:", presignRes.status, presignRaw); if (note) note.textContent = "❌ Presign failed — see Console."; return; }
 
-    let presign;
-    try { presign = JSON.parse(presignRaw); }
-    catch (e) { console.error("Presign not JSON:", presignRaw); if (note) note.textContent = "❌ Presign not JSON."; return; }
-
-    const { url, fields, key } = presign || {};
-    if (!url || !fields) { console.error("Presign missing url/fields:", presign); if (note) note.textContent = "❌ Presign missing fields."; return; }
-
-    // 2) build S3 form: policy fields first, then headers, then file
-    const fd = new FormData();
-    Object.entries(fields).forEach(([k,v]) => fd.append(k, v));
-    fd.append("Content-Type", contentType);
-    fd.append("x-amz-server-side-encryption", "AES256");
-    fd.append("file", file);
-
-    // 3) POST to S3
-    const up = await fetch(url, { method: "POST", body: fd });
-    const upText = await up.text();
-    if (!up.ok) {
-      const code = (upText.match(/<Code>([^<]+)<\/Code>/i) || [])[1] || "";
-      const msg  = (upText.match(/<Message>([^<]+)<\/Message>/i) || [])[1] || "";
-      console.error("[upload] failed:", code, msg, upText);
-      if (note) note.textContent = `❌ Upload failed — ${code || 'see Console'}${msg?`: ${msg}`:''}`;
+    if (!presignRes.ok) {
+      const t = await presignRes.text();
+      console.error("Presign failed:", presignRes.status, t);
+      if (note) note.textContent = "❌ Presign failed — see Console.";
       return;
     }
 
-    // 4) optional: notify backend
-    fetch(api("/apply-complete"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: file.name, size: file.size, contentType, key })
-    }).catch(()=>{});
+    const { url, fields } = await presignRes.json();
+    console.log("presign:", { url, fields });
 
+    // 2) build form data exactly as policy expects
+    const fd = new FormData();
+    Object.entries(fields).forEach(([k, v]) => fd.append(k, v));
+    fd.append("Content-Type", file.type || "application/octet-stream");
+    fd.append("x-amz-server-side-encryption", "AES256");
+    fd.append("file", file);
+
+    // 3) upload to S3
+    const up = await fetch(url, { method: "POST", body: fd });
+
+    console.log("status:", up.status);
+    console.log("x-amz-bucket-region:", up.headers.get("x-amz-bucket-region"));
+
+    const bodyText = await up.text();
+    if (!up.ok) {
+      console.error("Upload failed text:", bodyText);
+
+      const code = (bodyText.match(/<Code>([^<]+)<\/Code>/i) || [])[1] || "";
+      const msg  = (bodyText.match(/<Message>([^<]+)<\/Message>/i) || [])[1] || "";
+      console.log("S3 Error Code:", code);
+      console.log("S3 Error Message:", msg);
+
+      if (note) note.textContent = `❌ Upload failed — ${code || 'see Console'}${msg ? `: ${msg}` : ''}`;
+      return;
+    }
+
+    console.log("✅ Upload successful", bodyText);
     if (note) note.textContent = "✅ Upload successful!";
-    track("resume_upload_success", { size: file.size, type: contentType });
   } catch (err) {
-    console.error("Upload crash:", err);
+    console.error("Upload error:", err);
+    const note = document.getElementById("uploadNote");
     if (note) note.textContent = "❌ Upload crashed — see Console.";
   }
 }
-</script>
+
+
+  document.getElementById("waitlistBtn").addEventListener("click", async ()=>{
+    const email = (document.getElementById("waitlistEmail").value||"").trim();
+    if(!email) return alert("Enter your email first.");
+    try{
+      const r = await fetch(`${BACKEND}/waitlist`, {
+        method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ email })
+      });
+      if(!r.ok) throw new Error("waitlist_failed");
+      track("WaitlistJoined");
+      alert("✅ Added to waitlist!");
+    }catch(e){ console.error(e); alert("Waitlist join failed."); }
+  });
+
+  document.getElementById("healthBtn").addEventListener("click", async ()=>{
+    try{
+      const r = await fetch(`${BACKEND}/healthz`);
+      const j = await r.json();
+      track("HealthCheckClicked");
+      alert("Health: " + JSON.stringify(j));
+    }catch{ alert("Health check failed"); }
+  });
+
+  // If a stale Service Worker interferes during dev, you can manually unregister here:
+  if('serviceWorker' in navigator){
+    // navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+  }
+  </script>
+</body>
+</html>
 

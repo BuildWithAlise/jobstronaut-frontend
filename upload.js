@@ -13,162 +13,239 @@ modification, distribution, or disclosure is prohibited.
 
 Trademark Notice: Jobstronaut™ is a trademark of Neptune Inc.
 """
-// ===============================
-// Jobstronaut - Resume Upload JS
-// ===============================
-// ---- CONFIG ----
-// upload.js (top of file)
-const API_BASE = "https://jobstronaut-backend1.onrender.com"; // ← set this
-const PRESIGN_ENDPOINT = "/s3/presign";
-const COMPLETE_ENDPOINT = "/apply-complete";
-const LOCKED_CONTENT_TYPE = "application/pdf";
 
-// ---- HELPERS ----
-function $(sel) {
-  const el = document.querySelector(sel);
-  if (!el) console.warn(`Missing element for selector: ${sel}`);
-  return el;
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import boto3, os, datetime, botocore, uuid
+from sqlalchemy import create_engine, text
+
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+# 10MB max upload
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
+
+# --- Environment vars ---
+DATABASE_URL = os.environ["DATABASE_URL"]
+AWS_BUCKET_NAME = os.environ["AWS_BUCKET_NAME"]
+AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
+
+# --- Services ---
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+s3 = boto3.client("s3", region_name=AWS_REGION)
+
+# --- Health check ---
+@app.get("/healthz")
+def healthz():
+    return jsonify(ok=True)
+
+# --- One-time diagnostic route ---
+@app.get("/diag/s3")
+def diag_s3():
+    bucket = AWS_BUCKET_NAME
+    region_env = AWS_REGION
+    access = os.getenv("AWS_ACCESS_KEY_ID")
+    secret_set = bool(os.getenv("AWS_SECRET_ACCESS_KEY"))
+    
+    try:
+        loc = s3.get_bucket_location(Bucket=bucket).get("LocationConstraint")
+        bucket_region = loc or "us-east-1"
+        s3.head_bucket(Bucket=bucket)
+
+        return jsonify({
+            "ok": True,
+            "time_utc": datetime.datetime.utcnow().isoformat() + "Z",
+            "bucket": bucket,
+            "AWS_REGION_env": region_env,
+            "bucket_region_actual": bucket_region,
+            "has_access_key": bool(access),
+            "has_secret_key": secret_set
+        })
+    except botocore.exceptions.ClientError as e:
+        code = e.response.get("Error", {}).get("Code")
+        msg = e.response.get("Error", {}).get("Message")
+        headers = e.response.get("ResponseMetadata", {}).get("HTTPHeaders", {}) or {}
+        return jsonify({
+            "ok": False,
+            "bucket": bucket,
+            "AWS_REGION_env": region_env,
+            "error_code": code,
+            "error_message": msg,
+            "aws_headers": {
+                "x-amz-bucket-region": headers.get("x-amz-bucket-region"),
+                "x-amz-id-2": headers.get("x-amz-id-2"),
+                "x-amz-request-id": headers.get("x-amz-request-id")
+            }
+        }), 500
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "bucket": bucket,
+            "AWS_REGION_env": region_env,
+            "error": str(e)
+        }), 500
+
+# --- Presign route with SSE enforced ---
+@app.post("/s3/presign")
+def s3_presign():
+    filename = request.args.get("filename") or request.json.get("filename")
+    content_type = request.args.get("type") or request.json.get("type") or "application/pdf"
+
+    key = f"uploads/{uuid.uuid4()}_{filename}"
+
+    params = {
+        "Bucket": AWS_BUCKET_NAME,
+        "Key": key,
+        "ContentType": content_type,
+        "ServerSideEncryption": "AES256"
+    }
+
+    url = s3.generate_presigned_url(
+        ClientMethod="put_object",
+        Params=params,
+        ExpiresIn=300,
+        HttpMethod="PUT"
+    )
+
+    return jsonify({
+        "url": url,
+        "key": key,
+        "bucket": AWS_BUCKET_NAME,
+        "region": AWS_REGION
+    })
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
+
+"""
+Frontend snippet for PUT (upload.js)
+====================================
+const putRes = await fetch(presign.url, {
+  method: 'PUT',
+  body: file,
+  headers: {
+    'Content-Type': file.type || 'application/pdf',
+    'x-amz-server-side-encryption': 'AES256'
+  }
+});
+
+if (!putRes.ok) {
+  console.error("Upload failed", putRes.status, await putRes.text());
+} else {
+  console.log("✅ Upload success");
 }
-function setStatus(msg) { const s = $("#status"); if (s) s.textContent = msg; }
-function setBanner(type, msg) {
-  const b = $("#banner");
-  if (!b) return;
-  b.textContent = msg;
-  b.className = ""; // reset
-  b.classList.add("banner", type); // e.g. 'success' | 'error' | 'info'
-}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jobstronaut Resume Upload</title>
-</head>
-<body>
-  <h1>🚀 Jobstronaut Resume Upload</h1>
-  <form id="resumeForm">
-    <input type="file" id="resumeFile" accept="application/pdf" required />
-    <button type="submit">Upload Resume</button>
-  </form>
+"""
 
-  <script>
-    const API_BASE = "https://jobstronaut-backend.onrender.com"; // adjust if needed
 
-    document.getElementById("resumeForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const file = document.getElementById("resumeFile").files[0];
-      if (file) {
-        await uploadResume(file);
+---
+
+BACKEND: `/s3/presign` with Server-Side Encryption (AES256)
+==========================================================
+```python
+# Add to server.py
+import uuid
+
+@app.post("/s3/presign")
+def s3_presign():
+    data = {}
+    try:
+        if request.is_json:
+            data = request.get_json() or {}
+    except Exception:
+        data = {}
+
+    filename = request.args.get("filename") or data.get("filename") or "resume.pdf"
+    content_type = request.args.get("type") or data.get("type") or "application/pdf"
+
+    # Object key under uploads/
+    key = f"uploads/{uuid.uuid4()}_{filename}"
+
+    params = {
+        "Bucket": AWS_BUCKET_NAME,
+        "Key": key,
+        "ContentType": content_type,
+        # REQUIRED: include SSE in signature
+        "ServerSideEncryption": "AES256",
+    }
+
+    url = s3.generate_presigned_url(
+        ClientMethod="put_object",
+        Params=params,
+        ExpiresIn=300,
+        HttpMethod="PUT",
+    )
+
+    return jsonify({
+        "url": url,
+        "key": key,
+        "bucket": AWS_BUCKET_NAME,
+        "region": AWS_REGION,
+    })
+```
+
+FRONTEND: `uploadResume` with matching SSE + Content-Type headers
+=================================================================
+```html
+<script>
+async function uploadResume(file) {
+  try {
+    // 1) Get presigned URL (relative path hits your backend)
+    const presignRes = await fetch(`/s3/presign?filename=${encodeURIComponent(file.name)}&type=${encodeURIComponent(file.type || 'application/pdf')}`, { method: 'POST' });
+    const presign = await presignRes.json();
+    console.log("🔐 presign payload:", presign);
+    if (!presign?.url) { alert('Presign failed'); return; }
+
+    // 2) PUT to S3 with headers that MATCH the signature
+    const putRes = await fetch(presign.url, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type || 'application/pdf',
+        'x-amz-server-side-encryption': 'AES256'
       }
     });
 
-    async function uploadResume(file) {
+    const bodyText = await putRes.text();
+    console.log('PUT status:', putRes.status, putRes.statusText);
+    console.table({
+      status: putRes.status,
+      'x-amz-bucket-region': putRes.headers.get('x-amz-bucket-region'),
+      'x-amz-id-2': putRes.headers.get('x-amz-id-2'),
+      'x-amz-request-id': putRes.headers.get('x-amz-request-id'),
+      'content-type': putRes.headers.get('content-type')
+    });
+
+    if (putRes.status !== 200) {
       try {
-        // 1) Get presigned PUT URL
-        const presignRes = await fetch(`${API_BASE}/s3/presign?filename=${encodeURIComponent(file.name)}&type=${encodeURIComponent(file.type)}`, {
-          method: 'POST'
-        });
-        const presign = await presignRes.json();
-        console.log("🔐 presign payload:", presign);
-
-        if (!presign?.url) {
-          console.error("Presign response missing url:", presign);
-          alert("Presign failed — check backend logs.");
-          return;
-        }
-
-        // 2) PUT to S3 (no extra headers for Option A)
-        const putRes = await fetch(presign.url, {
-          method: 'PUT',
-          body: file,
-        });
-
-        const rawText = await putRes.text();
-
-        const hdr = {
-          status: putRes.status,
-          statusText: putRes.statusText,
-          'x-amz-id-2': putRes.headers.get('x-amz-id-2'),
-          'x-amz-request-id': putRes.headers.get('x-amz-request-id'),
-          'x-amz-bucket-region': putRes.headers.get('x-amz-bucket-region'),
-          'content-type': putRes.headers.get('content-type')
-        };
-
-        function parseS3XmlError(xmlStr) {
-          try {
-            const doc = new window.DOMParser().parseFromString(xmlStr, "application/xml");
-            const get = (tag) => doc.getElementsByTagName(tag)[0]?.textContent || null;
-            return {
-              Code: get("Code"),
-              Message: get("Message"),
-              Resource: get("Resource"),
-              RequestId: get("RequestId"),
-              HostId: get("HostId"),
-              Raw: xmlStr?.slice(0, 500)
-            };
-          } catch (e) {
-            return { Code: null, Message: null, Raw: xmlStr?.slice(0, 500) };
-          }
-        }
-
-        if (putRes.status !== 200) {
-          const s3Err = parseS3XmlError(rawText);
-          console.group("❌ S3 PUT failed");
-          console.table(hdr);
-          console.log("📄 S3 XML error:", s3Err);
-          console.groupEnd();
-
-          if (s3Err.Code === "AuthorizationHeaderMalformed") {
-            console.warn("Hint: Region mismatch. Set AWS_REGION in backend to your bucket’s region shown above (x-amz-bucket-region).”);
-          } else if (s3Err.Code === "SignatureDoesNotMatch") {
-            console.warn("Hint: Signature mismatch. With Option A (no headers) this is usually region or clock skew.");
-          } else if (s3Err.Code === "AccessDenied" || s3Err.Code === "InvalidAccessKeyId") {
-            console.warn("Hint: Check IAM policy / access key and bucket permissions.");
-          } else if (s3Err.Code === "NoSuchBucket") {
-            console.warn("Hint: Bucket name/region typo or wrong account.");
-          }
-
-          alert(`Upload failed (${hdr.status}). See console for S3 <Code> and details.`);
-          return;
-        }
-
-        console.group("✅ S3 PUT success");
-        console.table(hdr);
-        console.groupEnd();
-
-        // 3) Notify backend
-        const key = presign.key || presign.objectKey || null;
-        const fileUrl = presign.publicUrl || presign.url?.split("?")[0] || null;
-
-        const completePayload = {
-          filename: file.name,
-          size: file.size,
-          type: file.type,
-          key,
-          url: fileUrl
-        };
-        console.log("📬 /apply-complete payload:", completePayload);
-
-        const completeRes = await fetch(`${API_BASE}/apply-complete`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(completePayload)
-        });
-
-        if (!completeRes.ok) {
-          const t = await completeRes.text();
-          console.error("apply-complete failed:", completeRes.status, t);
-          alert("Uploaded to S3, but saving to database failed — check backend logs.");
-          return;
-        }
-
-        alert("✅ Resume uploaded!");
-      } catch (err) {
-        console.error("Unexpected error in uploadResume:", err);
-        alert("Unexpected error — open the console for details.");
-      }
+        const doc = new DOMParser().parseFromString(bodyText, 'application/xml');
+        const Code = doc.getElementsByTagName('Code')[0]?.textContent;
+        const Message = doc.getElementsByTagName('Message')[0]?.textContent;
+        console.warn('S3 error:', { Code, Message });
+      } catch {}
+      alert(`Upload failed (${putRes.status}). See console.`);
+      return;
     }
-  </script>
-</body>
-</html>
+
+    // 3) Notify backend of completion (optional)
+    const completePayload = {
+      filename: file.name,
+      size: file.size,
+      type: file.type,
+      key: presign.key,
+      url: presign.url.split('?')[0]
+    };
+    await fetch('/apply-complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(completePayload)
+    });
+
+    alert('✅ Resume uploaded!');
+  } catch (e) {
+    console.error(e);
+    alert('Unexpected error — check console.');
+  }
+}
+</script>
+```
 
