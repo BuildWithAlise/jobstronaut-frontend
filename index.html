@@ -231,6 +231,114 @@ document.getElementById("waitlistBtn").addEventListener("click", async ()=>{
     // navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
   }
   </script>
+  <script>
+// OPTIONAL: if your backend is on a different host, set it here.
+// e.g. const API_BASE = "https://jobstronaut-backend.onrender.com";
+const API_BASE = ""; // "" = same origin
+
+// helper: find first element that exists among several IDs
+function $id(ids){ for (const i of ids){ const el=document.getElementById(i); if(el) return el; } return null; }
+
+// helper: safer content-type (falls back by filename if browser leaves file.type blank)
+function sniffType(file){
+  if (file && file.type) return file.type;
+  const n = (file?.name || "").toLowerCase();
+  if (n.endsWith(".pdf"))  return "application/pdf";
+  if (n.endsWith(".doc"))  return "application/msword";
+  if (n.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  if (n.endsWith(".txt"))  return "text/plain";
+  if (n.endsWith(".rtf"))  return "application/rtf";
+  if (n.endsWith(".odt"))  return "application/vnd.oasis.opendocument.text";
+  return "application/octet-stream";
+}
+
+// tiny analytics helper (fixed braces)
+function track(e, p){ try{ if (window.plausible) plausible(e, { props:p }); }catch(_){} }
+
+async function uploadResume(file){
+  const note = document.getElementById("uploadNote");
+  const contentType = sniffType(file);
+  if (note) note.textContent = "Uploading…";
+
+  try{
+    // 1) /s3/presign
+    const presignRes = await fetch(`${API_BASE}/s3/presign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: file.name, contentType })
+    });
+    const presignCT  = presignRes.headers.get("content-type") || "";
+    const presignRaw = await presignRes.text();
+    console.log("[presign] status:", presignRes.status, "| ct:", presignCT);
+    console.log("[presign] body:", presignRaw.slice(0, 300));
+
+    if (!presignRes.ok){
+      if (note) note.textContent = "❌ Presign failed — see Console.";
+      return;
+    }
+    let presign;
+    try { presign = JSON.parse(presignRaw); }
+    catch(e){ console.error("Presign JSON parse failed:", e, presignRaw); if (note) note.textContent = "❌ Presign not JSON."; return; }
+
+    const { url, fields, key } = presign || {};
+    if (!url || !fields){ console.error("Presign missing url/fields:", presign); if (note) note.textContent="❌ Presign missing fields."; return; }
+
+    // 2) build S3 form (policy fields first)
+    const fd = new FormData();
+    Object.entries(fields).forEach(([k,v]) => fd.append(k, v));
+    fd.append("Content-Type", contentType);
+    fd.append("x-amz-server-side-encryption", "AES256");
+    fd.append("file", file);
+
+    // 3) POST to S3
+    const up = await fetch(url, { method:"POST", body: fd });
+    const upText = await up.text();
+    console.log("[upload] status:", up.status, "| region:", up.headers.get("x-amz-bucket-region"));
+
+    if (!up.ok){
+      const code = (upText.match(/<Code>([^<]+)<\/Code>/i) || [])[1] || "";
+      const msg  = (upText.match(/<Message>([^<]+)<\/Message>/i) || [])[1] || "";
+      console.error("[upload] failed:", code, msg, upText);
+      if (note) note.textContent = `❌ Upload failed — ${code || 'see Console'}${msg?`: ${msg}`:''}`;
+      return;
+    }
+
+    // 4) optional: notify backend
+    fetch(`${API_BASE}/apply-complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: file.name, size: file.size, contentType, key })
+    }).catch(()=>{});
+
+    if (note) note.textContent = "✅ Upload successful!";
+    track("resume_upload_success", { size:file.size, type:contentType });
+  }catch(err){
+    console.error("Upload crash:", err);
+    if (note) note.textContent = "❌ Upload crashed — see Console.";
+  }
+}
+
+// wire up after DOM ready; supports either set of IDs you’ve used
+document.addEventListener("DOMContentLoaded", ()=>{
+  const btn  = $id(["uploadButton","uploadBtn"]);       // button
+  const file = $id(["resumeFile","resumeInput"]);       // input[type=file]
+
+  if (btn && file){
+    btn.addEventListener("click", (e)=>{
+      e.preventDefault();
+      const f = file.files && file.files[0];
+      if (!f){ alert("Please choose a file first."); return; }
+      uploadResume(f);
+    });
+  }
+
+  // one-time during debug: unregister any stale service worker to avoid cached JS
+  if ('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations?.().then(rs => rs.forEach(r => r.unregister()));
+  }
+});
+</script>
+
 </body>
 </html>
 
