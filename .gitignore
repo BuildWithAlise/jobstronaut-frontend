@@ -15,3 +15,9 @@ index.before-v2.html
 dist/
 build/
 .cache/
+.goutputstream-*
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
