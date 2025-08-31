@@ -25,90 +25,87 @@
   }
 
   // ===== resume upload =====
-  async function uploadResume(file) {
-    const note = document.getElementById("uploadNote");
-    const contentType = sniffType(file);
-    if (note) note.textContent = "Uploading…";
+async function uploadResume(file) {
+  const note = document.getElementById("uploadNote");
+  const contentType = sniffType(file);
+  if (note) note.textContent = "Uploading…";
 
-    try {
-      // 1) presign
-      const pre = await fetch(api("/s3/presign"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name, contentType })
-      });
-      const preCT = pre.headers.get("content-type") || "";
-      const preText = await pre.text();
-      console.log("[presign] status:", pre.status, "| ct:", preCT);
-      console.log("[presign] body:", preText.slice(0, 300));
+  try {
+    // 1) PRESIGN
+    const pre = await fetch(api("/s3/presign"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: file.name, contentType })
+    });
+    const preText = await pre.text();
+    console.log("[presign] status:", pre.status, "| ct:", pre.headers.get("content-type"));
+    console.log("[presign] body:", preText.slice(0, 300));
 
-      if (!pre.ok) { if (note) note.textContent = "❌ Presign failed — see Console."; return; }
-
-     // ...after we fetched presign and did:
-let data;
-try { data = JSON.parse(preText); }
-catch (e) { console.error("Presign not JSON:", e, preText); if (note) note.textContent = "❌ Presign not JSON."; return; }
-
-// ✅ add this block exactly here:
-const url       = (data && (data.url || data.uploadUrl)) || "";
-const fields    = (data && data.fields) || null;
-const key       = (data && (data.key || data.Key || data.objectKey)) || "";
-const objectUrl = data && (data.objectUrl || data.objectURL);
-
-if (!url) {
-  console.error("Presign missing url:", data);
-  if (note) note.textContent = "❌ Presign missing url.";
-  return;
-}
-// (optional) debug
-console.log("[presign] chosen url:", url);
-
-// ...then the existing upload code runs:
-// if (fields) { // presigned POST ... } else { // presigned PUT using `url` ... }
-
-if (/your-bucket-name/i.test(url)) {
-  console.error("Presign returned placeholder bucket. Fix backend S3_BUCKET.");
-  if (note) note.textContent = "❌ Backend not configured (bucket placeholder).";
-  return;
-}
-else {
-        // Presigned PUT
-        const tryPut = async (headers) => {
-          const r = await fetch(url, { method: "PUT", headers, body: file });
-          const t = await r.text();
-          return { r, t };
-        };
-        let headers = { "Content-Type": contentType, "x-amz-server-side-encryption": "AES256" };
-        ({ r: up, t: upText } = await tryPut(headers));
-        if (!up.ok) {                      // retry once without AES256 if signature didn’t include it
-          delete headers["x-amz-server-side-encryption"];
-          ({ r: up, t: upText } = await tryPut(headers));
-        }
-      }
-
-      console.log("[upload] status:", up.status, "| region:", up.headers.get("x-amz-bucket-region"));
-      if (!up.ok) {
-        const code = (upText.match(/<Code>([^<]+)<\/Code>/i) || [])[1] || "";
-        const msg  = (upText.match(/<Message>([^<]+)<\/Message>/i) || [])[1] || "";
-        console.error("[upload] failed:", code, msg, upText);
-        if (note) note.textContent = `❌ Upload failed — ${code || "see Console"}${msg ? `: ${msg}` : ""}`;
-        return;
-      }
-
-      // 3) optional notify
-      fetch(api("/apply-complete"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name, size: file.size, contentType, key })
-      }).catch(()=>{});
-
-      if (note) note.textContent = "✅ Upload successful!";
-      track("resume_upload_success", { size: file.size, type: contentType });
-    } catch (err) {
-      console.error("Upload crash:", err);
-      if (note) note.textContent = "❌ Upload crashed — see Console.";
+    let data;
+    try { data = JSON.parse(preText); }
+    catch (e) {
+      console.error("Presign not JSON:", e, preText);
+      if (note) note.textContent = "❌ Presign not JSON.";
+      return;
     }
+
+    // accept either `url` or `uploadUrl`
+    const url       = (data && (data.url || data.uploadUrl)) || "";
+    const fields    = (data && data.fields) || null;
+    const key       = (data && (data.key || data.Key || data.objectKey)) || "";
+    const objectUrl = data && (data.objectUrl || data.objectURL);
+
+    if (!url) {
+      console.error("Presign missing url:", data);
+      if (note) note.textContent = "❌ Presign missing url.";
+      return;
+    }
+
+    console.log("[presign] chosen url:", url, fields ? "(POST)" : "(PUT)");
+
+    // 2) UPLOAD (POST if fields, else PUT)
+    if (fields) {
+      const fd = new FormData();
+      Object.entries(fields).forEach(([k, v]) => fd.append(k, v));
+      fd.append("file", file);
+
+      const up = await fetch(url, { method: "POST", body: fd });
+      const body = await up.text();
+      console.log("[upload:POST] status:", up.status, "| region:", up.headers.get("x-amz-bucket-region"), "| body:", body.slice(0, 200));
+
+      if (up.ok) {
+        if (note) note.textContent = "✅ Upload successful!";
+        track("resume_upload_success", { size: file.size, type: contentType });
+      } else {
+        if (note) note.textContent = "❌ Upload failed — see Console.";
+      }
+      return;
+    } else {
+      const up = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": contentType,
+          "x-amz-server-side-encryption": "AES256"
+        },
+        body: file
+      });
+      const body = await up.text();
+      console.log("[upload:PUT] status:", up.status, "| region:", up.headers.get("x-amz-bucket-region"), "| body:", body.slice(0, 200));
+
+      if (up.ok) {
+        if (note) note.textContent = "✅ Upload successful!";
+        track("resume_upload_success", { size: file.size, type: contentType });
+      } else {
+        if (note) note.textContent = "❌ Upload failed — see Console.";
+      }
+      return;
+    }
+  } catch (err) {
+    console.error("Upload exception:", err);
+    if (note) note.textContent = "❌ Upload error — see Console.";
   }
+}
+
   // expose for Console/manual trigger
   window.uploadResume = uploadResume;
 
