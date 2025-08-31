@@ -20,7 +20,7 @@
 
   <!-- Plausible (cookie-light) -->
   <script defer data-domain="jobstronaut.dev" src="https://plausible.io/js/script.js"></script>
-  <script>function track(e,p){try{if(window.plausible) plausible(e,{props:p});}catch(_){}}</script>
+  <script type="text/plain" data-disabled="true">function track(e,p){try{if(window.plausible) plausible(e,{props:p});}catch(_){}}</script>
 
   <style>
     :root{
@@ -130,7 +130,7 @@
     </div>
   </div>
 
-<script>
+<script type="text/plain" data-disabled="true">
 const API_BASE = "https://jobstronaut-backend1.onrender.com";   // no trailing slash
 const api = (p) => `${API_BASE}${p.startsWith('/') ? p : '/'+p}`;
 
@@ -236,5 +236,7 @@ async function uploadResume(file){
     if (note) note.textContent = '❌ Upload crashed — see Console.';
   }
 }
-</script>
+<script src="app.js?v=3" defer></script>
+</body>
+</html>
 
