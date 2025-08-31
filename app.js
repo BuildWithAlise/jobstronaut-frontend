@@ -90,23 +90,37 @@
   // expose for debugging
   window.uploadResume = uploadResume;
 
-  // attach listeners
-  window.addEventListener('DOMContentLoaded', () => {
-    const btn  = document.getElementById('uploadButton') || document.getElementById('uploadBtn');
-    const file = document.getElementById('resumeFile')   || document.getElementById('resumeInput');
-    if (btn && file) {
-      btn.type = 'button';
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const f = file.files && file.files[0];
-        if (!f) { alert('Please choose a file first.'); return; }
-        uploadResume(f);
-      });
-    }
-    // clear any stale SW that might serve old JS
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations?.().then(rs => rs.forEach(r => r.unregister()));
-    }
-    console.log('[jobstronaut] app.js loaded; listeners attached');
-  });
-})();
+ // attach listeners (robust finder)
+window.addEventListener('DOMContentLoaded', () => {
+  const findUploadButton = () =>
+    document.getElementById('uploadButton') ||
+    document.getElementById('uploadBtn') ||
+    [...document.querySelectorAll('button, [role="button"], input[type="button"], input[type="submit"]')]
+      .find(el => /upload\s*&?\s*submit/i.test(el.textContent || '') || /upload/i.test(el.value || ''));
+
+  const findFileInput = () =>
+    document.getElementById('resumeFile') ||
+    document.getElementById('resumeInput') ||
+    document.querySelector('input[type="file"]');
+
+  const btn  = findUploadButton();
+  const file = findFileInput();
+
+  console.log('[jobstronaut] app.js loaded; btn:', btn, 'file:', file);
+
+  if (btn && file) {
+    btn.type = 'button';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const f = file.files && file.files[0];
+      if (!f) { alert('Please choose a file first.'); return; }
+      uploadResume(f);
+    });
+  }
+
+  // kill any stale SW that might serve old JS
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations?.().then(rs => rs.forEach(r => r.unregister()));
+  }
+});
+
