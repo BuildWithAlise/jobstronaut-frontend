@@ -1,3 +1,11 @@
+<!-- ===============================================================
+     Jobstronaut™ Frontend
+     Author: Alise McNiel
+     Copyright (c) 2025 Alise McNiel. All rights reserved.
+     This software is part of the Jobstronaut™ project.
+     Unauthorized copying, modification, or distribution is prohibited.
+     =============================================================== -->
+
 /*!
  *  ┌─────────────────────────────────────────────────────────────────┐
  *  │  JOBSTRONAUT — The universe is hiring                           │

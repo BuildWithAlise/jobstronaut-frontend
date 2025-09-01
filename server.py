@@ -1,54 +1,111 @@
-# server.py
-import os, uuid
+# ===============================================================
+#      Jobstronaut™ Backend
+#      Author: Alise McNiel
+#      Copyright (c) 2025 Alise McNiel. All rights reserved.
+#      This software is part of the Jobstronaut™ project.
+#      Unauthorized copying, modification, or distribution is prohibited.
+# ===============================================================
+
+import os, re, time, functools
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import boto3
 from botocore.client import Config
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": os.getenv("ALLOWED_ORIGINS", "*").split(",")}})
 
-AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-S3_BUCKET  = os.getenv("S3_BUCKET")            # e.g. jobstronaut-uploads
-MAX_MB     = int(os.getenv("MAX_UPLOAD_MB", "10"))
+# CORS locked to prod env
+CORS(app, resources={
+    r"/*": {"origins": [os.getenv("CORS_ALLOWED_ORIGIN", "https://jobstronaut.dev")]}
+})
 
-s3 = boto3.client("s3", region_name=AWS_REGION, config=Config(signature_version="s3v4"))
+S3_BUCKET = os.environ["S3_BUCKET"]
+S3_REGION = os.environ.get("AWS_REGION", "us-east-1")
 
-@app.route("/s3/presign", methods=["POST"])
+s3 = boto3.client("s3", region_name=S3_REGION, config=Config(signature_version="s3v4"))
+
+@app.get("/healthz")
+def healthz():
+    return {"ok": True}
+
+# --- rate limit config ---
+RATE = {"ip": (30, 600), "email": (10, 600)}  # (count, window_sec)
+_rl_ip = {}
+_rl_email = {}
+
+def _allow(bucket, key, window, now):
+    q = [t for t in bucket.get(key, []) if now - t < window]
+    bucket[key] = q
+    return q
+
+def ratelimit(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        ip = request.headers.get("CF-Connecting-IP") or request.headers.get("X-Forwarded-For", request.remote_addr).split(",")[0].strip()
+        email = (request.json or {}).get("email", "").lower().strip()
+        now = time.time()
+
+        # IP check
+        ip_max, ip_win = RATE["ip"]
+        ip_list = _allow(_rl_ip, ip, ip_win, now)
+        if len(ip_list) >= ip_max:
+            return jsonify({"error":"rate_limited","message":"Too many requests. Try again later."}), 429
+
+        # Email check (only if provided)
+        if email:
+            em_max, em_win = RATE["email"]
+            em_list = _allow(_rl_email, email, em_win, now)
+            if len(em_list) >= em_max:
+                return jsonify({"error":"rate_limited","message":"Too many requests for this email. Try later."}), 429
+
+        # record
+        _rl_ip.setdefault(ip, []).append(now)
+        if email:
+            _rl_email.setdefault(email, []).append(now)
+        return fn(*args, **kwargs)
+    return wrapper
+
+PDF_CT_RE = re.compile(r"^application/(pdf|x-pdf)$", re.I)
+
+@app.post("/s3/presign")
+@ratelimit
 def presign():
-    body = request.get_json(silent=True) or {}
-    filename     = (body.get("filename") or f"file-{uuid.uuid4().hex}").replace("/", "_")
-    content_type = body.get("contentType") or "application/octet-stream"
-    key = f"uploads/{uuid.uuid4().hex}-{filename}"
+    data = request.get_json(force=True, silent=True) or {}
+    filename = (data.get("filename") or "").strip()
+    size = int(data.get("size") or 0)
+    content_type = (data.get("contentType") or "").strip()
+    email = (data.get("email") or "").strip()
 
-    fields = {
-        "Content-Type": content_type,
-        "x-amz-server-side-encryption": "AES256",
-        "acl": "private"
+    # Validate
+    if not filename or not content_type or not size:
+        return jsonify({"error":"bad_request","message":"filename, contentType, and size are required."}), 400
+    if not PDF_CT_RE.match(content_type) or not filename.lower().endswith(".pdf"):
+        return jsonify({"error":"unsupported_type","message":"Only PDF uploads are allowed."}), 415
+    if size > 10 * 1024 * 1024:
+        return jsonify({"error":"too_large","message":"Max file size is 10MB."}), 413
+
+    key = f"uploads/{int(time.time())}_{re.sub(r'[^a-zA-Z0-9_.-]','_', filename)}"
+    params = {
+        "Bucket": S3_BUCKET,
+        "Key": key,
+        "ContentType": content_type,
+        "ServerSideEncryption": "AES256",
     }
-    conditions = [
-        {"acl": "private"},
-        {"x-amz-server-side-encryption": "AES256"},
-        ["eq", "$Content-Type", content_type],
-        ["content-length-range", 1, MAX_MB * 1024 * 1024],
-        ["starts-with", "$key", "uploads/"]
-    ]
-
-    presigned = s3.generate_presigned_post(
-        Bucket=S3_BUCKET, Key=key, Fields=fields, Conditions=conditions, ExpiresIn=60
+    url = s3.generate_presigned_url(
+        ClientMethod="put_object",
+        Params=params,
+        ExpiresIn=300,  # 5 min
+        HttpMethod="PUT",
     )
-
     return jsonify({
-        "url": presigned["url"],
-        "fields": presigned["fields"],
+        "url": url,
         "key": key,
-        "region": AWS_REGION
+        "headers": {
+            "Content-Type": content_type,
+            "x-amz-server-side-encryption": "AES256"
+        },
+        "limits": {"maxBytes": 10*1024*1024, "allowedTypes": ["application/pdf"]},
     })
 
-@app.route("/apply-complete", methods=["POST"])
-def apply_complete():
-    # optional: receive a ping after successful upload
-    payload = request.get_json(silent=True) or {}
-    print("apply-complete:", payload)
-    return jsonify({"ok": True})
-
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
