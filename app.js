@@ -125,6 +125,13 @@
         const region = up.headers.get("x-amz-bucket-region") || inferRegionFromUrls({ objectUrl, url });
         console.log("[upload:POST] status:", up.status, "| region:", region, "| body:", body.slice(0, 200));
         if (!up.ok) throw new Error("Upload (POST) failed");
+
+        // Success popup (POST)
+        if (note) note.textContent = "✅ Upload successful!";
+        alert("✅ Upload received! We’ll process it and email you.");
+        track("resume_upload_success", { size: file.size, type: contentType });
+        safeApplyComplete({ key, objectUrl, size: file.size, contentType });
+
       } else {
         const up = await fetchT(url, {
           method: "PUT",
@@ -138,6 +145,12 @@
         const region = up.headers.get("x-amz-bucket-region") || inferRegionFromUrls({ objectUrl, url });
         console.log("[upload:PUT] status:", up.status, "| region:", region, "| body:", body.slice(0, 200));
         if (!up.ok) throw new Error("Upload (PUT) failed");
+
+        // Success popup (PUT)
+        if (note) note.textContent = "✅ Upload successful!";
+        alert("✅ Upload received! We’ll process it and email you.");
+        track("resume_upload_success", { size: file.size, type: contentType });
+        safeApplyComplete({ key, objectUrl, size: file.size, contentType });
       }
     } catch (e) {
       console.error("Upload error:", e);
@@ -145,10 +158,16 @@
       track("resume_upload_failed", { size: file.size, type: contentType });
       return;
     }
+  }
 
-    if (note) note.textContent = "✅ Upload successful!";
-    console.log("[objectUrl]", objectUrl || "(not provided)");
-    track("resume_upload_success", { size: file.size, type: contentType });
+  async function safeApplyComplete(payload) {
+    try {
+      await fetch(api("/apply-complete"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload || {})
+      }).catch(() => {});
+    } catch (_) {}
   }
 
   // ---------- Waitlist ----------
@@ -166,7 +185,7 @@
       }, 15000);
       const txt = await res.text();
       console.log("[waitlist] status:", res.status, "| body:", txt.slice(0, 200));
-      if (res.ok) alert("Welcome aboard! You’re on the waitlist.");
+      if (res.ok) alert("You're on the list! 🚀");
       else alert("Couldn’t join waitlist right now. Try again shortly.");
       track("waitlist_join", { ok: res.ok });
     } catch (e) {
