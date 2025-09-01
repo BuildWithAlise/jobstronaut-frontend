@@ -6,7 +6,7 @@
 #      Unauthorized copying, modification, or distribution is prohibited.
 # ===============================================================
 
-import os, re, time, functools
+import os, re, time, functools, json, uuid
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import boto3
@@ -106,6 +106,38 @@ def presign():
         },
         "limits": {"maxBytes": 10*1024*1024, "allowedTypes": ["application/pdf"]},
     })
+
+# --- waitlist signup -> writes JSON record to S3: waitlist/<ts>_<uuid>.json (AES256) ---
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+@app.post("/waitlist")
+@ratelimit
+def waitlist():
+    data = request.get_json(force=True, silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+
+    if not EMAIL_RE.match(email):
+        return jsonify({"error": "invalid_email", "message": "Enter a valid email."}), 400
+
+    entry = {
+        "email": email,
+        "ts": int(time.time()),
+        "ua": request.headers.get("User-Agent", "")[:300],
+        "ref": request.headers.get("Referer", "")[:300],
+    }
+
+    key = f"waitlist/{int(time.time())}_{uuid.uuid4().hex}.json"
+
+    s3.put_object(
+        Bucket=S3_BUCKET,
+        Key=key,
+        Body=json.dumps(entry).encode("utf-8"),
+        ContentType="application/json",
+        ServerSideEncryption="AES256",
+    )
+
+    app.logger.info("waitlist_signup email=%s key=%s", email, key)
+    return jsonify({"ok": True})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
