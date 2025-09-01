@@ -1,255 +1,109 @@
-<!-- ===============================================================
-     Jobstronaut™ Frontend
-     Author: Alise McNiel
-     Copyright (c) 2025 Alise McNiel. All rights reserved.
-     This software is part of the Jobstronaut™ project.
-     Unauthorized copying, modification, or distribution is prohibited.
-     =============================================================== -->
+// ===============================================================
+// Jobstronaut™ Frontend Upload Logic (Closed Beta)
+// Author: Alise McNiel
+// ===============================================================
 
-/*!
- *  ┌─────────────────────────────────────────────────────────────────┐
- *  │  JOBSTRONAUT — The universe is hiring                           │
- *  │  Frontend V2 actions: Resume upload, Waitlist, Health checks    │
- *  │  S3 presigned PUT/POST (AES256), Plausible hooks                │
- *  └─────────────────────────────────────────────────────────────────┘
- */
-(() => {
-  "use strict";
+(function() {
+  const fileInput = document.querySelector('#resume');
+  const emailInput = document.querySelector('#email');
+  const uploadBtn = document.querySelector('#uploadBtn');
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Backend base URL
-  // Set window.__API_BASE in index.html to override at runtime if needed:
-  //   <script>window.__API_BASE="https://jobstronaut-backend.onrender.com"</script>
-  const API_BASE = (typeof window !== "undefined" && window.__API_BASE) 
-    ? window.__API_BASE 
-    : "https://jobstronaut-backend1.onrender.com";
-
-  const api = (p) => `${API_BASE}${p.startsWith("/") ? "" : "/"}${p}`;
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Analytics (Plausible optional)
-  function track(ev, props) {
-    try { if (window.plausible) window.plausible(ev, { props }); } catch (_) {}
+  // Feedback link analytics
+  const feedbackLink = document.querySelector('#feedbackLink');
+  if (feedbackLink) {
+    feedbackLink.addEventListener('click', () => {
+      window.plausible && window.plausible('feedback_open');
+    });
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Helpers
-  function $(id) { return document.getElementById(id); }
-
-  function sniffType(file) {
-    if (!file) return "application/octet-stream";
-    const t = (file.type || "").toLowerCase();
-    if (t) return t;
-    const n = (file.name || "").toLowerCase();
-    if (n.endsWith(".pdf"))  return "application/pdf";
-    if (n.endsWith(".doc"))  return "application/msword";
-    if (n.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    if (n.endsWith(".rtf"))  return "application/rtf";
-    if (n.endsWith(".txt"))  return "text/plain";
-    return "application/octet-stream";
+  function toast(msg, type = 'ok') {
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => { el.classList.remove('show'); el.remove(); }, 3500);
   }
 
-  // Small fetch with timeout
-  async function fetchT(input, init, ms = 15000) {
-    const ctrl = new AbortController();
-    const id = setTimeout(() => ctrl.abort(), ms);
-    try {
-      const res = await fetch(input, { ...(init||{}), signal: ctrl.signal });
-      clearTimeout(id);
-      return res;
-    } catch (e) {
-      clearTimeout(id);
-      throw e;
+  function fmtBytes(n) {
+    const units = ['B','KB','MB','GB'];
+    let i = 0;
+    while (n >= 1024 && i < units.length-1) { n /= 1024; i++; }
+    return n.toFixed(1) + ' ' + units[i];
+  }
+
+  async function presignUpload(file, email) {
+    const res = await fetch('/s3/presign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: file.name,
+        size: file.size,
+        contentType: file.type || 'application/pdf',
+        email: (email || '').trim()
+      })
+    });
+    if (!res.ok) {
+      let msg = 'Could not start upload.';
+      try { const j = await res.json(); msg = j.message || msg; } catch {}
+      if (res.status === 413) msg = 'File too large. Max 10MB.';
+      if (res.status === 415) msg = 'Only PDF files are allowed.';
+      if (res.status === 429) msg = 'Too many requests. Try later.';
+      window.plausible && window.plausible('upload_error', {props:{code: res.status}});
+      throw new Error(msg);
     }
+    return res.json();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Resume Upload (supports presigned POST and PUT). AES256 enforced.
-  async function uploadResume(file) {
-    const note = $("uploadNote");
-    const contentType = sniffType(file);
-    if (!file) { alert("Choose a resume file first."); return; }
-    if (note) note.textContent = "Uploading…";
-
-    try {
-      // 1) PRESIGN
-      const pre = await fetchT(api("/s3/presign"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name, contentType })
-      }, 20000);
-
-      const preText = await pre.text();
-      console.log("[presign] status:", pre.status, "| ct:", pre.headers.get("content-type"));
-      console.log("[presign] body:", preText.slice(0, 300));
-
-      let data;
-      try {
-        data = JSON.parse(preText);
-      } catch (e) {
-        console.error("Presign not JSON:", e, preText);
-        if (note) note.textContent = "❌ Presign not JSON.";
-        return;
-      }
-
-      const url       = (data && (data.url || data.uploadUrl)) || "";
-      const fields    = (data && data.fields) || null;
-      const key       = (data && (data.key || data.Key || data.objectKey)) || "";
-      const objectUrl = data && (data.objectUrl || data.objectURL);
-
-      if (!url) {
-        console.error("Presign missing url:", data);
-        if (note) note.textContent = "❌ Presign missing url.";
-        return;
-      }
-
-      console.log("[presign] chosen url:", url, fields ? "(POST)" : "(PUT)");
-
-      // 2) UPLOAD
-      if (fields) {
-        // Presigned POST
-        const fd = new FormData();
-        Object.entries(fields).forEach(([k, v]) => fd.append(k, v));
-        fd.append("file", file);
-
-        const up = await fetchT(url, { method: "POST", body: fd }, 60000);
-        const body = await up.text();
-        console.log("[upload:POST] status:", up.status, "| region:", up.headers.get("x-amz-bucket-region"), "| body:", body.slice(0, 200));
-
-        if (up.ok) {
-          if (note) note.textContent = "✅ Upload successful!";
-          track("resume_upload_success", { size: file.size, type: contentType });
-          safeApplyComplete({ key, objectUrl, size: file.size, contentType });
-        } else {
-          if (note) note.textContent = "❌ Upload failed — see Console.";
-        }
-      } else {
-        // Presigned PUT
-        const up = await fetchT(url, {
-          method: "PUT",
-          headers: {
-            "Content-Type": contentType,
-            "x-amz-server-side-encryption": "AES256"
-          },
-          body: file
-        }, 60000);
-        const body = await up.text();
-        console.log("[upload:PUT] status:", up.status, "| region:", up.headers.get("x-amz-bucket-region"), "| body:", body.slice(0, 200));
-
-        if (up.ok) {
-          if (note) note.textContent = "✅ Upload successful!";
-          track("resume_upload_success", { size: file.size, type: contentType });
-          safeApplyComplete({ key, objectUrl, size: file.size, contentType });
-        } else {
-          if (note) note.textContent = "❌ Upload failed — see Console.";
-        }
-      }
-    } catch (err) {
-      console.error("Upload exception:", err);
-      if (note) note.textContent = "❌ Upload error — see Console.";
-    }
+  async function putToS3(url, headers, file) {
+    const put = await fetch(url, { method: 'PUT', headers, body: file });
+    if (!put.ok) throw new Error('Upload failed (S3 PUT).');
   }
 
-  async function safeApplyComplete(payload) {
-    try {
-      await fetch(api("/apply-complete"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload || {})
-      }).catch(() => {});
-    } catch (_) {}
-  }
+  async function handleUpload() {
+    const file = fileInput && fileInput.files && fileInput.files[0];
+    const email = emailInput ? emailInput.value : '';
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Waitlist
-  async function joinWaitlist(email) {
-    const btn = $("waitlistBtn");
+    if (!file) return toast('Choose a PDF first.', 'err');
+    if (!/\.pdf$/i.test(file.name)) return toast('Only PDF allowed.', 'err');
+    if (file.size > 10 * 1024 * 1024) return toast('Max 10MB.', 'err');
+
+    uploadBtn && (uploadBtn.disabled = true);
+    uploadBtn && (uploadBtn.textContent = 'Uploading…');
+
     try {
-      if (btn) btn.disabled = true;
-      const res = await fetchT(api("/waitlist/join"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: (email || "").trim() })
-      }, 15000);
-      const txt = await res.text();
-      console.log("[waitlist] status:", res.status, "| body:", txt.slice(0, 200));
-      track("waitlist_join", { ok: res.ok });
-      if (res.ok) alert("Welcome aboard! You’re on the waitlist.");
-      else alert("Couldn’t join waitlist right now. Try again shortly.");
+      const { url, headers } = await presignUpload(file, email);
+      await putToS3(url, headers, file);
+      toast('Thanks! We’ll email you when your resume is parsed.', 'ok');
+      window.plausible && window.plausible('upload_success', {props:{size: fmtBytes(file.size)}});
+      // Optional: clear input
+      if (fileInput) fileInput.value = '';
     } catch (e) {
-      console.error("waitlist error:", e);
-      alert("Network issue joining the waitlist.");
+      toast(e.message || 'Upload failed.', 'err');
     } finally {
-      if (btn) btn.disabled = false;
+      uploadBtn && (uploadBtn.disabled = false);
+      uploadBtn && (uploadBtn.textContent = 'Upload Resume');
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Quick Ping (used by “Check system status” button)
-  async function quickPing() {
-    try {
-      const h = await fetchT(api("/healthz"), {}, 8000);
-      const hText = await h.text();
-      console.log("[ping] /healthz", h.status, hText.slice(0, 200));
-
-      const p = await fetchT(api("/s3/presign"), {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ filename: "ping.txt", contentType: "text/plain" })
-      }, 10000);
-      const pText = await p.text();
-      console.log("[ping] /s3/presign", p.status, pText.slice(0, 300));
-
-      const note = $("uploadNote");
-      if (note) note.textContent = (h.ok && p.ok) ? "✅ Backend OK" : "⚠️ Some systems unhappy";
-    } catch (e) {
-      console.error("[ping] error:", e);
-      const note = $("uploadNote");
-      if (note) note.textContent = "⚠️ Ping error (see Console)";
-    }
+  if (uploadBtn) {
+    uploadBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleUpload();
+    });
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Bind UI
-  function bindUI() {
-    console.log("[jobstronaut] app.js v3 loaded");
-
-    const uploadBtn = $("uploadBtn");
-    const fileInput = $("resumeInput");
-    console.log("[jobstronaut] binding: uploadBtn:\n", uploadBtn, "\n fileInput:\n", fileInput);
-    if (uploadBtn && fileInput) {
-      uploadBtn.addEventListener("click", async () => {
-        const f = fileInput.files?.[0];
-        if (!f) return alert("Choose a PDF resume first.");
-        await uploadResume(f);
-      });
-    }
-
-    const waitlistBtn = $("waitlistBtn");
-    const emailInput = $("waitlistEmail");
-    console.log("[jobstronaut] binding: waitlistBtn:\n", waitlistBtn, "\n email:\n", emailInput);
-    if (waitlistBtn && emailInput) {
-      waitlistBtn.addEventListener("click", async () => {
-        const email = (emailInput.value || "").trim();
-        if (!email) return alert("Enter your email to join the waitlist.");
-        await joinWaitlist(email);
-      });
-    }
-
-    const healthBtn = $("healthBtn");
-    console.log("[jobstronaut] binding: statusBtn:\n", healthBtn);
-    if (healthBtn) {
-      healthBtn.addEventListener("click", quickPing);
-    }
-
-    // expose handy functions for console testing
-    window.uploadResume = uploadResume;
-    window.quickPing = quickPing;
+  // Minimal toast styles (inject if not present)
+  const style = document.createElement('style');
+  style.textContent = `
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+    padding: 10px 14px; border-radius: 10px; opacity: 0; transition: all .25s ease;
+    background: #111; color: #fff; font-weight: 600; z-index: 9999;
   }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bindUI);
-  } else {
-    bindUI();
-  }
+  .toast.ok { background: #0e7c3a; }
+  .toast.err { background: #b71c1c; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  `;
+  document.head.appendChild(style);
 })();
