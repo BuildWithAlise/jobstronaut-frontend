@@ -1,9 +1,5 @@
 # ===============================================================
-#      Jobstronaut™ Backend
-#      Author: Alise McNiel
-#      Copyright (c) 2025 Alise McNiel. All rights reserved.
-#      This software is part of the Jobstronaut™ project.
-#      Unauthorized copying, modification, or distribution is prohibited.
+#      Jobstronaut™ Backend (waitlist + alias enabled)
 # ===============================================================
 
 import os, re, time, functools, json, uuid
@@ -110,9 +106,7 @@ def presign():
 # --- waitlist signup -> writes JSON record to S3: waitlist/<ts>_<uuid>.json (AES256) ---
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-@app.post("/waitlist/join")
-@ratelimit
-def waitlist():
+def _handle_waitlist():
     data = request.get_json(force=True, silent=True) or {}
     email = (data.get("email") or "").strip().lower()
 
@@ -138,6 +132,17 @@ def waitlist():
 
     app.logger.info("waitlist_signup email=%s key=%s", email, key)
     return jsonify({"ok": True})
+
+@app.post("/waitlist")
+@ratelimit
+def waitlist():
+    return _handle_waitlist()
+
+# alias for older frontend calling /waitlist/join
+@app.post("/waitlist/join")
+@ratelimit
+def waitlist_join():
+    return _handle_waitlist()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
