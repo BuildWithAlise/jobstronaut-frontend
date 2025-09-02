@@ -1,143 +1,90 @@
 # ===============================================================
-#      Jobstronaut™ Backend
-#      Author: Alise McNiel
-#      Copyright (c) 2025 Alise McNiel. All rights reserved.
-#      This software is part of the Jobstronaut™ project.
-#      Unauthorized copying, modification, or distribution is prohibited.
+#  Jobstronaut™ Frontend Static Server (Flask)
+#  Purpose: serve your built/static frontend (index.html, app.js, assets)
+#  Works on Render or local dev. Supports /.well-known/security.txt
 # ===============================================================
 
-import os, re, time, functools, json, uuid
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import boto3
-from botocore.client import Config
+import os
+from datetime import timedelta
+from flask import Flask, send_from_directory, request, abort, make_response
 
-app = Flask(__name__)
+# Directory that contains your frontend files (index.html, app.js, etc.)
+# By default we serve the current working directory, but you can set STATIC_DIR.
+STATIC_DIR = os.environ.get("STATIC_DIR", os.getcwd())
 
-# CORS locked to prod env
-CORS(app, resources={
-    r"/*": {"origins": [os.getenv("CORS_ALLOWED_ORIGIN", "https://jobstronaut.dev")]}
-})
+app = Flask(__name__, static_folder=None)
 
-S3_BUCKET = os.environ["S3_BUCKET"]
-S3_REGION = os.environ.get("AWS_REGION", "us-east-1")
+# ---------- Helpers ----------
+ASSET_EXTS = (".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".woff", ".woff2", ".ttf", ".map")
 
-s3 = boto3.client("s3", region_name=S3_REGION, config=Config(signature_version="s3v4"))
+def _cache_headers(resp, path):
+    # Long cache for hashed assets, short for html/others
+    filename = os.path.basename(path)
+    if any(filename.endswith(ext) for ext in ASSET_EXTS):
+        # If file name looks hashed (e.g., app.3f2d1.js), cache longer
+        long_cache = any("." in part and len(part) >= 6 for part in filename.split("."))
+        max_age = 86400 * (30 if long_cache else 1)  # 30 days or 1 day
+    else:
+        max_age = 60  # 1 minute for html and misc
+    resp.headers["Cache-Control"] = f"public, max-age={max_age}"
+    return resp
 
-@app.get("/healthz")
+def _serve(path, download_name=None):
+    abs_path = os.path.join(STATIC_DIR, path)
+    if not os.path.isfile(abs_path):
+        abort(404)
+    resp = make_response(send_from_directory(STATIC_DIR, path, as_attachment=False, download_name=download_name))
+    return _cache_headers(resp, abs_path)
+
+# ---------- Routes ----------
+
+# Well-known (security.txt, etc.)
+@app.route("/.well-known/<path:filename>")
+def well_known(filename):
+    return _serve(os.path.join(".well-known", filename))
+
+# Robots / sitemap shortcuts
+@app.route("/robots.txt")
+def robots():
+    return _serve("robots.txt")
+
+@app.route("/sitemap.xml")
+def sitemap():
+    return _serve("sitemap.xml")
+
+# Terms / Privacy
+@app.route("/terms.html")
+def terms():
+    return _serve("terms.html")
+
+@app.route("/privacy.html")
+def privacy():
+    return _serve("privacy.html")
+
+# Asset catch-all (js, css, images, etc.)
+@app.route("/assets/<path:filename>")
+def assets(filename):
+    return _serve(os.path.join("assets", filename))
+
+# Direct file access in root (e.g., app.js, styles.css)
+@app.route("/<path:filename>")
+def static_files(filename):
+    # Prevent path traversal
+    if ".." in filename or filename.startswith("/"):
+        abort(404)
+    return _serve(filename)
+
+# Index
+@app.route("/")
+def index():
+    # Serve index.html from STATIC_DIR
+    return _serve("index.html")
+
+# Health
+@app.route("/healthz")
 def healthz():
     return {"ok": True}
 
-# --- rate limit config ---
-RATE = {"ip": (30, 600), "email": (10, 600)}  # (count, window_sec)
-_rl_ip = {}
-_rl_email = {}
-
-def _allow(bucket, key, window, now):
-    q = [t for t in bucket.get(key, []) if now - t < window]
-    bucket[key] = q
-    return q
-
-def ratelimit(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        ip = request.headers.get("CF-Connecting-IP") or request.headers.get("X-Forwarded-For", request.remote_addr).split(",")[0].strip()
-        email = (request.json or {}).get("email", "").lower().strip()
-        now = time.time()
-
-        # IP check
-        ip_max, ip_win = RATE["ip"]
-        ip_list = _allow(_rl_ip, ip, ip_win, now)
-        if len(ip_list) >= ip_max:
-            return jsonify({"error":"rate_limited","message":"Too many requests. Try again later."}), 429
-
-        # Email check (only if provided)
-        if email:
-            em_max, em_win = RATE["email"]
-            em_list = _allow(_rl_email, email, em_win, now)
-            if len(em_list) >= em_max:
-                return jsonify({"error":"rate_limited","message":"Too many requests for this email. Try later."}), 429
-
-        # record
-        _rl_ip.setdefault(ip, []).append(now)
-        if email:
-            _rl_email.setdefault(email, []).append(now)
-        return fn(*args, **kwargs)
-    return wrapper
-
-PDF_CT_RE = re.compile(r"^application/(pdf|x-pdf)$", re.I)
-
-@app.post("/s3/presign")
-@ratelimit
-def presign():
-    data = request.get_json(force=True, silent=True) or {}
-    filename = (data.get("filename") or "").strip()
-    size = int(data.get("size") or 0)
-    content_type = (data.get("contentType") or "").strip()
-    email = (data.get("email") or "").strip()
-
-    # Validate
-    if not filename or not content_type or not size:
-        return jsonify({"error":"bad_request","message":"filename, contentType, and size are required."}), 400
-    if not PDF_CT_RE.match(content_type) or not filename.lower().endswith(".pdf"):
-        return jsonify({"error":"unsupported_type","message":"Only PDF uploads are allowed."}), 415
-    if size > 10 * 1024 * 1024:
-        return jsonify({"error":"too_large","message":"Max file size is 10MB."}), 413
-
-    key = f"uploads/{int(time.time())}_{re.sub(r'[^a-zA-Z0-9_.-]','_', filename)}"
-    params = {
-        "Bucket": S3_BUCKET,
-        "Key": key,
-        "ContentType": content_type,
-        "ServerSideEncryption": "AES256",
-    }
-    url = s3.generate_presigned_url(
-        ClientMethod="put_object",
-        Params=params,
-        ExpiresIn=300,  # 5 min
-        HttpMethod="PUT",
-    )
-    return jsonify({
-        "url": url,
-        "key": key,
-        "headers": {
-            "Content-Type": content_type,
-            "x-amz-server-side-encryption": "AES256"
-        },
-        "limits": {"maxBytes": 10*1024*1024, "allowedTypes": ["application/pdf"]},
-    })
-
-# --- waitlist signup -> writes JSON record to S3: waitlist/<ts>_<uuid>.json (AES256) ---
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
-@app.post("/waitlist/join")
-@ratelimit
-def waitlist():
-    data = request.get_json(force=True, silent=True) or {}
-    email = (data.get("email") or "").strip().lower()
-
-    if not EMAIL_RE.match(email):
-        return jsonify({"error": "invalid_email", "message": "Enter a valid email."}), 400
-
-    entry = {
-        "email": email,
-        "ts": int(time.time()),
-        "ua": request.headers.get("User-Agent", "")[:300],
-        "ref": request.headers.get("Referer", "")[:300],
-    }
-
-    key = f"waitlist/{int(time.time())}_{uuid.uuid4().hex}.json"
-
-    s3.put_object(
-        Bucket=S3_BUCKET,
-        Key=key,
-        Body=json.dumps(entry).encode("utf-8"),
-        ContentType="application/json",
-        ServerSideEncryption="AES256",
-    )
-
-    app.logger.info("waitlist_signup email=%s key=%s", email, key)
-    return jsonify({"ok": True})
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    port = int(os.environ.get("PORT", "8000"))
+    app.run(host="0.0.0.0", port=port)
