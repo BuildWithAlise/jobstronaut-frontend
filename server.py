@@ -110,7 +110,7 @@ def presign():
 # --- waitlist signup -> writes JSON record to S3: waitlist/<ts>_<uuid>.json (AES256) ---
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-@app.post("/waitlist")
+@app.post("/waitlist/join")
 @ratelimit
 def waitlist():
     data = request.get_json(force=True, silent=True) or {}
