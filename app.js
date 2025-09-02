@@ -1,188 +1,73 @@
+/*!
+ * Jobstronaut waitlist addon (v2)
+ * - No UI mutations (does not change button text/state)
+ * - Robust binding with MutationObserver + delegation
+ * - Uses window.__API_BASE if set; else same-origin in prod
+ */
+(function(){
+  function ready(fn){ if(document.readyState!=='loading'){ fn(); } else { document.addEventListener('DOMContentLoaded', fn); } }
+  function $(sel){ return document.querySelector(sel); }
 
-(() => {
-  const API_BASE = (window.__API_BASE || "https://jobstronaut-backend1.onrender.com").replace(/\/+$/,"");
+  // --- API base detection ---
+  var API_BASE = (typeof window.__API_BASE === 'string' && window.__API_BASE.trim()) ? window.__API_BASE.trim() : '';
 
-  // Element helpers
-  const $ = (sel) => document.querySelector(sel);
-  const log = (...a) => { try { console.log(...a); } catch (_) {} };
+  function api(path){ return API_BASE ? (API_BASE + path) : path; }
 
-  // Inputs & buttons (existence-checked so this is drop-in safe)
-  const fileInput        = $("#resumeFile");
-  const emailInput       = $("#emailInput");
-  const uploadBtn        = $("#uploadBtn");
-  const waitlistEmail    = $("#waitlistEmail");
-  const joinWaitlistBtn  = $("#joinWaitlistBtn");
-  const healthBtn        = $("#healthBtn");
-  const openApplyBtn     = $("#openApplyBtn");
-
-  // UI feedback helpers
-  const toast = (msg) => { try { alert(msg); } catch(_) {} };
-  const setBusy = (el, busy, labelBusy, labelIdle) => {
-    if (!el) return;
-    el.disabled = !!busy;
-    if (labelBusy && labelIdle) el.textContent = busy ? labelBusy : labelIdle;
-  };
-
-  // --- API helpers -----------------------------------------------------------
-  async function apiJSON(path, opts = {}) {
-    const res = await fetch(`${API_BASE}${path}`, {
-      method: "GET",
-      ...opts,
-      headers: {
-        "Content-Type": "application/json",
-        ...(opts.headers || {}),
-      },
+  async function joinWaitlist(email){
+    const res = await fetch(api('/waitlist'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: (email||'').trim() })
     });
-    const ct = res.headers.get("content-type") || "";
-    const body = ct.includes("application/json") ? await res.json() : await res.text();
-    return { ok: res.ok, status: res.status, body };
-  }
-
-  // --- HEALTH CHECK ----------------------------------------------------------
-  async function handleHealth() {
-    setBusy(healthBtn, true, "Checking...", "Check system status");
-    try {
-      const { ok, status, body } = await apiJSON("/healthz");
-      log("[healthz]", status, body);
-      toast(ok ? "System OK ✅" : `Health check failed (${status})`);
-    } catch (err) {
-      console.error(err);
-      toast("Health check error");
-    } finally {
-      setBusy(healthBtn, false, "Checking...", "Check system status");
+    if (!res.ok){
+      let msg = 'Could not join waitlist.';
+      try { const j = await res.json(); msg = j.message || msg; } catch(_){}
+      throw new Error(msg);
     }
+    return res.json().catch(()=>({ok:true}));
   }
 
-  // --- WAITLIST --------------------------------------------------------------
-  async function handleJoinWaitlist() {
-    if (!waitlistEmail) return;
-    const email = (waitlistEmail.value || "").trim();
-    if (!email) return toast("Enter your email to join the waitlist.");
-    setBusy(joinWaitlistBtn, true, "Joining...", "Join waitlist");
-    try {
-      // 🔁 NEW: correct endpoint
-      const { ok, status, body } = await apiJSON("/waitlist", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      });
-      log("[waitlist]", status, body);
-      if (ok) {
-        toast("You're on the waitlist! 🚀");
-        try { waitlistEmail.value = ""; } catch(_){}
-      } else {
-        const msg = (body && body.message) ? body.message : `Join failed (${status})`;
-        toast(msg);
+  function getInputs(){
+    const input = $('#waitlistEmail') || $('input[name="waitlistEmail"]') || $('input[type="email"].waitlist') || $('input[data-waitlist]');
+    const button = $('#joinWaitlistBtn') || $('.join-waitlist-btn') || $('button[data-action="join-waitlist"]') || $('button.waitlist');
+    const form = $('#waitlistForm') || $('form[data-role="waitlist"]') || (button && button.closest('form'));
+    return {input, button, form};
+  }
+
+  function bindOnce(){
+    const {input, button, form} = getInputs();
+    if (!button){ return false; }
+    if (button.__jobstronaut_bound) return true;
+    const handler = async function(e){
+      e && e.preventDefault && e.preventDefault();
+      const email = (input && input.value || '').trim();
+      if (!email) return;
+      try{
+        await joinWaitlist(email);
+        try { if (typeof window.toast === 'function') window.toast("You're on the list! 🚀", 'ok'); } catch(_){}
+        input && (input.value='');
+        try { window.plausible && window.plausible('waitlist_join'); } catch(_){}
+      } catch(err){
+        console.warn('[Jobstronaut] Waitlist error:', err);
+        try { if (typeof window.toast === 'function') window.toast("Waitlist failed", 'err'); } catch(_){}
       }
-    } catch (err) {
-      console.error(err);
-      toast("Network error joining waitlist.");
-    } finally {
-      setBusy(joinWaitlistBtn, false, "Joining...", "Join waitlist");
-    }
+    };
+    button.addEventListener('click', handler);
+    if (form) form.addEventListener('submit', handler);
+    button.__jobstronaut_bound = true;
+    console.log('[Jobstronaut] Waitlist addon v2 bound.');
+    return true;
   }
 
-  // --- UPLOAD (PDF → S3 via presign) ----------------------------------------
-  async function handleUpload() {
-    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
-      return toast("Choose a PDF first.");
-    }
-    const file = fileInput.files[0];
-    const email = (emailInput && emailInput.value || "").trim();
-    const ct = file.type || "application/pdf";
-
-    if (!/application\/(pdf|x-pdf)/i.test(ct) || !/\.pdf$/i.test(file.name)) {
-      return toast("Only PDF files are allowed.");
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      return toast("Max file size is 10MB.");
-    }
-
-    setBusy(uploadBtn, true, "Uploading...", "Upload & Submit");
-
-    try {
-      // 1) Ask backend for presigned URL
-      const presignRes = await apiJSON("/s3/presign", {
-        method: "POST",
-        body: JSON.stringify({
-          filename: file.name,
-          size: file.size,
-          contentType: ct,
-          email: email || undefined,
-        }),
-      });
-      if (!presignRes.ok) {
-        const msg = (presignRes.body && presignRes.body.message) ? presignRes.body.message : "Could not get upload URL.";
-        toast(msg);
-        return;
-      }
-      const { url, headers } = presignRes.body || {};
-      if (!url) return toast("Upload URL not returned from server.");
-
-      log("[presign] got", url);
-
-      // 2) Upload file directly to S3
-      const putRes = await fetch(url, {
-        method: "PUT",
-        headers: {
-          ...(headers || {}),
-          "Content-Type": ct,
-        },
-        body: file,
-      });
-
-      log("[upload:PUT] status:", putRes.status);
-      if (!putRes.ok) {
-        return toast(`Upload failed (${putRes.status}).`);
-      }
-
-      toast("Resume uploaded ✅");
-      try { fileInput.value = ""; } catch(_){}
-      try { if (emailInput) emailInput.value = ""; } catch(_){}
-
-    } catch (err) {
-      console.error(err);
-      toast("Network error during upload.");
-    } finally {
-      setBusy(uploadBtn, false, "Uploading...", "Upload & Submit");
-    }
+  function installObserver(){
+    const obs = new MutationObserver(function(){
+      bindOnce();
+    });
+    obs.observe(document.documentElement, {subtree: true, childList: true});
   }
 
-  // --- OPTIONAL: Open Apply (placeholder hook) -------------------------------
-  function handleOpenApply() {
-    // Keep the button alive without breaking layout; implement later.
-    toast("Apply flow coming soon ✨");
-  }
-
-  // --- BINDINGS --------------------------------------------------------------
-  try {
-    if (joinWaitlistBtn && waitlistEmail) {
-      joinWaitlistBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        handleJoinWaitlist();
-      });
-      log("[bind] waitlistBtn + waitlistEmail OK");
-    }
-    if (healthBtn) {
-      healthBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        handleHealth();
-      });
-      log("[bind] healthBtn OK");
-    }
-    if (uploadBtn && fileInput) {
-      uploadBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        handleUpload();
-      });
-      log("[bind] uploadBtn + fileInput OK");
-    }
-    if (openApplyBtn) {
-      openApplyBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        handleOpenApply();
-      });
-    }
-  } catch (err) {
-    console.error("binding error", err);
-  }
+  ready(function(){
+    bindOnce() || setTimeout(bindOnce, 200);
+    installObserver();
+  });
 })();
