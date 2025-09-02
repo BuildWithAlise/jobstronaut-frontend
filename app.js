@@ -1,71 +1,105 @@
 /*!
- * Jobstronaut addon (waitlist-only, no UI changes) v1
- * - Safe to include AFTER your existing app.js
- * - Does NOT change button text, styling, or disable states
- * - Uses window.__API_BASE if set; otherwise auto-picks for file://
+ * Jobstronaut waitlist DEBUG add-on (v3)
+ * Purpose: tell us EXACTLY why it's not binding/firing.
+ * - Zero UI changes
+ * - Loud console logs at every step
  */
-
 (function(){
-  function ready(fn){ if(document.readyState!=='loading'){ fn(); } else { document.addEventListener('DOMContentLoaded', fn); } }
-  function $(id){ return document.getElementById(id); }
-  function toast(msg){ 
-    try {
-      // Use existing toast() if your app.js defines it
-      if (typeof window.toast === 'function') return window.toast(msg, 'ok');
-    } catch(_) {}
-    // Fallback (no styling changes)
-    console.log('[Jobstronaut] ' + msg);
-  }
+  const log = (...a)=>console.log("%c[Waitlist DEBUG]", "color:#7c3aed;font-weight:bold", ...a);
+  const warn = (...a)=>console.warn("%c[Waitlist DEBUG]", "color:#dc2626;font-weight:bold", ...a);
 
-  var DEFAULT_RENDER_API = 'https://jobstronaut-backend1.onrender.com'; // change if your Render URL differs
-  var API_BASE = '';
-  if (typeof window.__API_BASE === 'string' && window.__API_BASE.trim()) {
-    API_BASE = window.__API_BASE.trim();
-  } else if (location.protocol === 'file:' || location.hostname === '' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-    API_BASE = DEFAULT_RENDER_API;
-  } else {
-    API_BASE = ''; // same-origin in prod
-  }
+  // ---------- API base ----------
+  const API_BASE = (typeof window.__API_BASE === 'string' && window.__API_BASE.trim()) ? window.__API_BASE.trim() : '';
+  log("API_BASE =", API_BASE || "(same-origin)");
+
   function api(path){ return API_BASE ? (API_BASE + path) : path; }
 
+  // ---------- Network ----------
   async function joinWaitlist(email){
-    const res = await fetch(api('/waitlist'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: (email||'').trim() })
-    });
-    if (!res.ok){
-      let msg='Could not join waitlist.';
-      try { const j=await res.json(); msg=j.message||msg; } catch(_){}
-      throw new Error(msg);
+    const url = api('/waitlist');
+    log("POST", url, { email });
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: (email||'').trim() })
+      });
+      const txt = await res.text();
+      log("Response", res.status, txt);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      try { return JSON.parse(txt); } catch { return { ok: true, raw: txt }; }
+    } catch (e) {
+      warn("Fetch error:", e);
+      throw e;
     }
-    return res.json().catch(()=>({ok:true}));
   }
 
-  function bindWaitlist(){
-    const wlInput = $('waitlistEmail') || document.querySelector('input[name="waitlistEmail"]');
-    const wlBtn   = $('joinWaitlistBtn') || document.querySelector('.join-waitlist-btn, button[data-action="join-waitlist"]');
-    const wlForm  = document.querySelector('form#waitlistForm, form[data-role="waitlist"]') || (wlBtn && wlBtn.closest('form'));
-    if (!wlBtn){ setTimeout(bindWaitlist, 200); return; }
+  // ---------- Selector detection ----------
+  function pick(sel){
+    const el = document.querySelector(sel);
+    if (el) log("Matched", sel, "→", el);
+    else log("No match for", sel);
+    return el;
+  }
 
-    async function handleJoin(e){
+  function findTargets(){
+    // Try specific -> generic
+    const input = pick('#waitlistEmail') ||
+                  pick('input[name="waitlistEmail"]') ||
+                  pick('input.waitlist') ||
+                  pick('input[data-waitlist]');
+
+    const button = pick('#joinWaitlistBtn') ||
+                   pick('.join-waitlist-btn') ||
+                   pick('button[data-action="join-waitlist"]') ||
+                   pick('button.waitlist') ||
+                   pick('button');
+
+    // form is optional; used to catch Enter key
+    const form = pick('#waitlistForm') ||
+                 pick('form[data-role="waitlist"]') ||
+                 (button && button.closest && button.closest('form'));
+
+    return { input, button, form };
+  }
+
+  function bind(){
+    const { input, button, form } = findTargets();
+
+    if (!button) { warn("No button found. Add id='joinWaitlistBtn' OR class='join-waitlist-btn' OR data-action='join-waitlist'"); return false; }
+    if (!input)  { warn("No input found. Add id='waitlistEmail' OR name='waitlistEmail' OR class='waitlist' OR data-waitlist"); return false; }
+
+    if (button.__jobstronaut_bound) { log("Already bound, skipping."); return true; }
+
+    const handler = async function(e){
       e && e.preventDefault && e.preventDefault();
-      const email = (wlInput && wlInput.value || '').trim();
-      if (!email) return; // keep UX minimal; no alerts
-      try{
-        await joinWaitlist(email);
-        toast("You're on the list! 🚀");
-        wlInput && (wlInput.value='');
-        try { window.plausible && window.plausible('waitlist_join'); } catch(_){}
-      }catch(err){
-        console.warn('[Jobstronaut] Waitlist error:', err);
+      const email = (input && input.value || '').trim();
+      log("Click handler fired. Email =", email);
+      if (!email) { warn("Empty email — nothing sent."); return; }
+      try {
+        const out = await joinWaitlist(email);
+        log("Success payload:", out);
+        if (typeof window.toast === 'function') window.toast("You're on the list! 🚀", "ok");
+        input && (input.value = '');
+      } catch (err) {
+        warn("Handler error:", err);
+        if (typeof window.toast === 'function') window.toast("Waitlist failed", "err");
       }
-    }
+    };
 
-    wlBtn.addEventListener('click', handleJoin);
-    wlForm && wlForm.addEventListener('submit', handleJoin);
-    console.log('[Jobstronaut] Waitlist addon bound.');
+    button.addEventListener('click', handler);
+    if (form) { form.addEventListener('submit', handler); log("Form submit bound to handler."); }
+
+    button.__jobstronaut_bound = true;
+    log("Bound OK to button:", button, "and input:", input);
+    return true;
   }
 
-  ready(bindWaitlist);
+  // Re-bind if DOM changes
+  const mo = new MutationObserver(()=>bind());
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const ok = bind();
+    if (!ok) setTimeout(bind, 300);
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+  });
 })();
