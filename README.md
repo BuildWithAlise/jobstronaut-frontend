@@ -1,65 +1,36 @@
-# Jobstronaut Frontend Deploy Bundle
+# Jobstronaut – Waitlist Add-on (Keep your old app.js)
 
-**What this is:** a tiny Flask static server + Procfile so you can deploy your existing `jobstronaut-frontend` (with `index.html` at the repo root) to Render as a Python web service.
+This package lets you keep your **existing working `app.js`** for uploads and adds the **waitlist** behavior separately, without changing your button text, classes, or disabled states.
 
-## Files included
-- `frontend_server.py` — Flask app that serves everything from the repo root and exposes `/healthz`.
-- `Procfile` — Gunicorn entry for Render (`web` process).
-- `requirements.txt` — Python deps for Render.
+## Files
+- `app.addon.waitlist.v2.js` – robust waitlist binder
+- `README.md` – these instructions
 
----
+## How to use
+1) Put **both files** in your frontend project root (same folder as `index.html`).
+2) In your HTML, load **your original app.js** first, then the add-on:
 
-## How to use (copy‑paste)
+```html
+<!-- Optional: set this only if testing from file:// or localhost and need to hit Render -->
+<!-- <script>window.__API_BASE='https://YOUR-BACKEND.onrender.com'</script> -->
 
-1) **Drop these files** into your `jobstronaut-frontend` repo root (same level as `index.html`).
-
-2) **Commit & push:**
-```bash
-git add frontend_server.py Procfile requirements.txt
-git commit -m "chore: add Flask static server for Render deploy"
-git push origin main
+<script src="app.js?v=YOUR_EXISTING_VERSION" defer></script>
+<script src="app.addon.waitlist.v2.js?v=1" defer></script>
 ```
 
-3) **Create a Render Web Service** (not Static Site):
-- **Type:** Web Service
-- **Runtime:** Python 3
-- **Build Command:** `pip install -r requirements.txt`
-- **Start Command:** `gunicorn frontend_server:app --bind 0.0.0.0:$PORT`
-- **Environment:** leave default (no DB needed).
+3) Make sure your waitlist markup has one of these selectors:
+- Button: `#joinWaitlistBtn` **or** `.join-waitlist-btn` **or** `button[data-action="join-waitlist"]` **or** `button.waitlist`
+- Input: `#waitlistEmail` **or** `[name="waitlistEmail"]` **or** `input.waitlist` **or** `input[data-waitlist]`
+- (Optional) Form: `#waitlistForm` **or** `form[data-role="waitlist"]`
 
-4) **Health check:**
-- Set **Health Check Path** → `/healthz`
-- After deploy, open: `https://<your-render-service>.onrender.com/healthz`
+> The add-on finds the first matching elements and binds once. It also re-binds if your DOM is replaced (MutationObserver).
 
-5) **Point your domain (optional now / later):**
-- Set your CNAME for `jobstronaut.dev` (or subdomain) to the Render service hostname.
+## Backend routes expected
+- `POST /waitlist` (preferred) — **or**
+- `POST /waitlist/join` — supported by the alias we added in your backend
 
----
-
-## ENV tips
-
-- To serve a different directory (rare), set `STATIC_DIR=/path/in/repo`. Defaults to repo root (where `index.html` lives).
-- No secret env needed for this server; it’s purely static.
-
----
-
-## Local test
-
-```bash
-# optional venv
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python frontend_server.py
-# visit http://127.0.0.1:8000 and http://127.0.0.1:8000/healthz
-```
-
----
-
-## Checklist for today's ✅ "What's next"
-
-- [ ] Drop in files & push
-- [ ] Create Render **Web Service**
-- [ ] Health check `/healthz` green
-- [ ] Invite testers
-
-> Generated: 2025-09-02T04:13:32
+## Troubleshooting
+- **Nothing happens on click** → bump the cache (`?v=1 -> ?v=2`) and hard-refresh (Cmd+Shift+R).
+- **404** on `/waitlist` → confirm the backend has the route (we shipped both `/waitlist` and `/waitlist/join`).
+- **CORS error from file://** → set `window.__API_BASE` to your Render backend URL before the scripts.
+- **Multiple toasts** → ensure the button is only present once or that you aren’t loading the add-on twice.
