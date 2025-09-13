@@ -139,10 +139,25 @@
     window.__API_BASE = 'https://jobstronaut-backend1.onrender.com';
   }
 </script>
-
-
-<!-- Your working upload script -->
 <script src="app.js?v=3" defer></script>
-
-
+<script>
+(function () {
+  const btn = document.getElementById('waitlistBtn');
+  const input = document.getElementById('waitlistEmail');
+  if (!btn || !input) return;
+  async function join(email) {
+    const res = await fetch(window.__API_BASE + '/waitlist', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email: (email||'').trim() })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+  }
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const email = (input.value || '').trim();
+    if (!email) return;
+    try { await join(email); input.value = ''; } catch {}
+  });
+})();
+</script>
 
