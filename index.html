@@ -111,22 +111,38 @@
         <h2>Command Console</h2>
         <p class="hint">Join the waitlist, check system status, and jump into applying.</p>
 
-      <input id="waitlistEmail" type="email" placeholder="you@example.com">
+       <input id="waitlistEmail" type="email" placeholder="you@example.com">
+      
 
-<div class="row" style="margin-top:16px">
-  <button id="waitlistBtn" class="btn btn-cta">Join waitlist</button>
-  <button id="healthBtn" class="btn">Check system status</button>
-  <a class="btn" href="/apply.html">Open Apply</a>
-</div>
 
-<footer>
-  <a href="/privacy.html">Privacy</a>·
-  <a href="/terms.html">Terms</a>·
-  <a href="/sitemap.xml">Sitemap</a>
-</footer>
 
-...
+        <div class="row" style="margin-top:16px">
+          <button id="waitlistBtn" class="btn btn-cta">Join waitlist</button>
+          <button id="healthBtn" class="btn">Check system status</button>
+          <a class="btn" href="/apply.html">Open Apply</a>
+        </div>
+
+        <footer>
+          <a href="/privacy.html">Privacy</a>·
+          <a href="/terms.html">Terms</a>·
+          <a href="/sitemap.xml">Sitemap</a>
+        </footer>
+      </section>
+    </div>
+  </div>
+
+
+<script>
+  if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+    window.__API_BASE = 'http://127.0.0.1:5000';
+  } else {
+    window.__API_BASE = 'https://jobstronaut-backend1.onrender.com';
+  }
+</script>
+
 
 <!-- Your working upload script -->
 <script src="app.js?v=3" defer></script>
+
+
 
