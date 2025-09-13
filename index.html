@@ -131,17 +131,15 @@
   </div>
 
 
-<script src="app.js?v=3" defer></script>
-
-<!-- Point frontend to Render backend -->
 <script>
-  // Use local backend when running locally; Render in prod
+  // Local dev → local API, else Render
   if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
     window.__API_BASE = 'http://127.0.0.1:5000';
   } else {
     window.__API_BASE = 'https://jobstronaut-backend1.onrender.com';
   }
 </script>
+
 
 <!-- Your working upload script -->
 <script src="app.js?v=3" defer></script>
