@@ -35,62 +35,82 @@
   }
 
   // ---------- Selector detection ----------
- // ===== Upload (bind once) =====
-(function () {
+ // ===== Robust Upload Binder (does not touch waitlist) =====
+(() => {
   if (window.__boundUpload) return; window.__boundUpload = true;
 
-  const api = window.__API_BASE || '';
-  const btn = document.getElementById('uploadBtn');
-  const fileInput = document.getElementById('resume');
-  const emailOpt = document.getElementById('email'); // optional
+  const API = window.__API_BASE || '';
+  // Find elements (strict IDs first, then safe fallbacks)
+  const fileInput = document.getElementById('resumeInput')
+                   || document.querySelector('input[type="file"][accept*="pdf"]');
+  const emailOpt  = document.getElementById('email');
+  const btn       = document.getElementById('uploadBtn')
+                   || document.querySelector('button[data-role="upload"]');
 
-  if (!btn || !fileInput) return;
+  if (!btn || !fileInput) {
+    console.warn('[upload] Missing #uploadBtn or #resumeInput'); 
+    return;
+  }
+
+  const isPDF = (f) => f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+  const maxSz = 10 * 1024 * 1024; // 10 MB
 
   btn.addEventListener('click', async (e) => {
     e.preventDefault();
 
     const file = fileInput.files && fileInput.files[0];
-    if (!file) { alert('Choose a PDF first.'); return; }
-    if (file.type !== 'application/pdf') { alert('PDF only.'); return; }
-    if (file.size > 10 * 1024 * 1024) { alert('Max 10 MB.'); return; }
+    if (!file)   return alert('Choose a PDF first.');
+    if (!isPDF(file)) return alert('PDF only.');
+    if (file.size > maxSz) return alert('Max 10 MB.');
 
     try {
-      // 1) Get presigned PUT
-      const pres = await fetch(`${api}/s3/presign`, {
+      // 1) presign
+      const pres = await fetch(`${API}/s3/presign`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           filename: file.name,
-          content_type: file.type,
+          content_type: 'application/pdf',   // be explicit
           size: file.size,
           email: (emailOpt && emailOpt.value || '').trim() || undefined
         })
       });
-      const { url, headers } = await pres.json();
-      if (!pres.ok || !url) throw new Error(`presign failed ${pres.status}`);
 
-      // 2) Upload to S3
+      if (!pres.ok) {
+        const txt = await pres.text().catch(()=>'');
+        throw new Error(`presign ${pres.status}: ${txt}`);
+      }
+
+      const { url, headers } = await pres.json();
+      if (!url) throw new Error('no presign url');
+
+      // 2) PUT to S3 (include both Content-Type and SSE; also include any headers backend returned)
       const put = await fetch(url, {
         method: 'PUT',
         headers: {
-          'Content-Type': file.type,
-          // defense-in-depth: match backend’s requirement
+          'Content-Type': 'application/pdf',
           'x-amz-server-side-encryption': 'AES256',
           ...(headers || {})
         },
         body: file
       });
-      if (!put.ok) throw new Error(`S3 PUT failed ${put.status}`);
 
-      alert("✅ Uploaded! We’ll email you when it’s parsed.");
+      if (!put.ok) {
+        const txt = await put.text().catch(()=>'');
+        throw new Error(`S3 PUT ${put.status}: ${txt}`);
+      }
+
+      alert("✅ Uploaded! We’ll email you when your resume is parsed.");
       fileInput.value = '';
       if (emailOpt) emailOpt.value = '';
+
     } catch (err) {
-      console.error('[upload] error:', err);
-      alert('Upload failed. Try again.');
+      console.error('[upload] failed:', err);
+      alert('Upload failed. Check console → Network for details.');
     }
   }, { passive: false });
 })();
+
 // ===== Waitlist (bind once) =====
 (function () {
   if (window.__boundWL) return; window.__boundWL = true;
