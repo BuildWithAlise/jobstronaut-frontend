@@ -111,8 +111,9 @@
         <h2>Command Console</h2>
         <p class="hint">Join the waitlist, check system status, and jump into applying.</p>
 
-        <label for="waitlistEmail">Join waitlist</label>
-        <input id="waitlistEmail" type="email" placeholder="you@example.com" />
+       <input id="waitlistEmail" type="email" placeholder="you@example.com">
+<button id="waitlistBtn" class="btn btn-cta">Join waitlist</button>
+
 
         <div class="row" style="margin-top:16px">
           <button id="waitlistBtn" class="btn btn-cta">Join waitlist</button>
@@ -131,7 +132,7 @@
 
 
 <script src="app.js?v=3" defer></script>
-<script src="app.addon.waitlist.debug.js?v=1" defer></script>
+
 <!-- Point frontend to Render backend -->
 <script>
   window.__API_BASE = 'https://jobstronaut-backend1.onrender.com';
