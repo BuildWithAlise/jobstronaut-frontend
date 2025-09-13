@@ -15,6 +15,7 @@ window.__API_BASE =
 
   const API = window.__API_BASE;
   const fileInput = document.getElementById('resumeInput');
+
   const emailOpt = document.getElementById('email');
   const btn = document.getElementById('uploadBtn');
 
