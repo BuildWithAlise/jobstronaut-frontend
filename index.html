@@ -159,5 +159,12 @@
     try { await join(email); input.value = ''; } catch {}
   });
 })();
+<script>
+  // TEMP: Force-unregister any service workers to stop caching POSTs.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      for (const r of regs) r.unregister();
+    }).catch(()=>{});
+  }
 </script>
 
