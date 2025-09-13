@@ -35,65 +35,93 @@
   }
 
   // ---------- Selector detection ----------
-  function pick(sel){
-    const el = document.querySelector(sel);
-    if (el) log("Matched", sel, "→", el);
-    else log("No match for", sel);
-    return el;
-  }
+ // ===== Upload (bind once) =====
+(function () {
+  if (window.__boundUpload) return; window.__boundUpload = true;
 
-  function findTargets(){
-    // Try specific -> generic
-    const input = pick('#waitlistEmail') ||
-                  pick('input[name="waitlistEmail"]') ||
-                  pick('input.waitlist') ||
-                  pick('input[data-waitlist]');
+  const api = window.__API_BASE || '';
+  const btn = document.getElementById('uploadBtn');
+  const fileInput = document.getElementById('resume');
+  const emailOpt = document.getElementById('email'); // optional
 
-    const button = pick('#joinWaitlistBtn') ||
-                   pick('.join-waitlist-btn') ||
-                   pick('button[data-action="join-waitlist"]') ||
-                   pick('button.waitlist') ||
-                   pick('button');
+  if (!btn || !fileInput) return;
 
-    // form is optional; used to catch Enter key
-    const form = pick('#waitlistForm') ||
-                 pick('form[data-role="waitlist"]') ||
-                 (button && button.closest && button.closest('form'));
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
 
-    return { input, button, form };
-  }
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) { alert('Choose a PDF first.'); return; }
+    if (file.type !== 'application/pdf') { alert('PDF only.'); return; }
+    if (file.size > 10 * 1024 * 1024) { alert('Max 10 MB.'); return; }
 
-  function bind(){
-    const { input, button, form } = findTargets();
+    try {
+      // 1) Get presigned PUT
+      const pres = await fetch(`${api}/s3/presign`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          filename: file.name,
+          content_type: file.type,
+          size: file.size,
+          email: (emailOpt && emailOpt.value || '').trim() || undefined
+        })
+      });
+      const { url, headers } = await pres.json();
+      if (!pres.ok || !url) throw new Error(`presign failed ${pres.status}`);
 
-    if (!button) { warn("No button found. Add id='joinWaitlistBtn' OR class='join-waitlist-btn' OR data-action='join-waitlist'"); return false; }
-    if (!input)  { warn("No input found. Add id='waitlistEmail' OR name='waitlistEmail' OR class='waitlist' OR data-waitlist"); return false; }
+      // 2) Upload to S3
+      const put = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type,
+          // defense-in-depth: match backend’s requirement
+          'x-amz-server-side-encryption': 'AES256',
+          ...(headers || {})
+        },
+        body: file
+      });
+      if (!put.ok) throw new Error(`S3 PUT failed ${put.status}`);
 
-    if (button.__jobstronaut_bound) { log("Already bound, skipping."); return true; }
+      alert("✅ Uploaded! We’ll email you when it’s parsed.");
+      fileInput.value = '';
+      if (emailOpt) emailOpt.value = '';
+    } catch (err) {
+      console.error('[upload] error:', err);
+      alert('Upload failed. Try again.');
+    }
+  }, { passive: false });
+})();
+// ===== Waitlist (bind once) =====
+(function () {
+  if (window.__boundWL) return; window.__boundWL = true;
 
-    const handler = async function(e){
-      e && e.preventDefault && e.preventDefault();
-      const email = (input && input.value || '').trim();
-      log("Click handler fired. Email =", email);
-      if (!email) { warn("Empty email — nothing sent."); return; }
-      try {
-        const out = await joinWaitlist(email);
-        log("Success payload:", out);
-        if (typeof window.toast === 'function') window.toast("You're on the list! 🚀", "ok");
-        input && (input.value = '');
-      } catch (err) {
-        warn("Handler error:", err);
-        if (typeof window.toast === 'function') window.toast("Waitlist failed", "err");
-      }
-    };
+  const api = window.__API_BASE || '';
+  const btn = document.getElementById('waitlistBtn');
+  const input = document.getElementById('waitlistEmail');
 
-    button.addEventListener('click', handler);
-    if (form) { form.addEventListener('submit', handler); log("Form submit bound to handler."); }
+  if (!btn || !input) return;
 
-    button.__jobstronaut_bound = true;
-    log("Bound OK to button:", button, "and input:", input);
-    return true;
-  }
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const email = (input.value || '').trim();
+    if (!email) { alert('Enter your email first.'); return; }
+
+    try {
+      const res = await fetch(`${api}/waitlist`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      alert("🎉 You're on the list!");
+      input.value = '';
+    } catch (err) {
+      console.error('[waitlist] error:', err);
+      alert('Waitlist failed. Try again.');
+    }
+  }, { passive: false });
+})();
+
 
   // Re-bind if DOM changes
   const mo = new MutationObserver(()=>bind());
