@@ -132,6 +132,48 @@
 
 <script src="app.js?v=3" defer></script>
 <script src="app.addon.waitlist.debug.js?v=1" defer></script>
+<!-- 1) Point frontend to your Render backend while testing locally -->
+<script>
+  window.__API_BASE = 'https://jobstronaut-backend1.onrender.com';
+</script>
+
+<!-- 2) Minimal inline waitlist binder (no external file needed) -->
+<script>
+(function () {
+  const btn = document.getElementById('waitlistBtn');     // your button id
+  const input = document.getElementById('waitlistEmail'); // your input id
+  if (!btn || !input) { console.warn('[WL] Missing elements'); return; }
+
+  async function join(email) {
+    const res = await fetch(window.__API_BASE + '/waitlist', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email: (email||'').trim() })
+    });
+    const txt = await res.text();
+    console.log('[WL] POST /waitlist', res.status, txt);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    try { return JSON.parse(txt); } catch { return {ok:true}; }
+  }
+
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const email = (input.value || '').trim();
+    if (!email) { console.warn('[WL] Empty email'); return; }
+    try {
+      await join(email);
+      if (typeof window.toast === 'function') window.toast("You're on the list! 🚀", 'ok');
+      input.value = '';
+    } catch (err) {
+      console.error('[WL] Failed:', err);
+      if (typeof window.toast === 'function') window.toast('Waitlist failed', 'err');
+    }
+  });
+
+  console.log('[WL] Bound to #waitlistBtn and #waitlistEmail');
+})();
+</script>
+
 </body>
 </html>
 
