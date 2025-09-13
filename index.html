@@ -132,7 +132,7 @@
 
 <script src="app.js?v=3" defer></script>
 <script src="app.addon.waitlist.debug.js?v=1" defer></script>
-<!-- 1) Point frontend to your Render backend while testing locally -->
+<!-- Point frontend to your Render backend while testing locally -->
 <script>
   window.__API_BASE = 'https://jobstronaut-backend1.onrender.com';
 </script>
@@ -140,11 +140,11 @@
 <!-- Your working upload script -->
 <script src="app.js?v=3" defer></script>
 
-<!-- Minimal inline waitlist binder (no external file needed) -->
+<!-- Minimal inline waitlist binder -->
 <script>
 (function () {
-  const btn = document.getElementById('waitlistBtn');     // your button id
-  const input = document.getElementById('waitlistEmail'); // your input id
+  const btn = document.getElementById('waitlistBtn');
+  const input = document.getElementById('waitlistEmail');
   if (!btn || !input) { console.warn('[WL] Missing elements'); return; }
 
   async function join(email) {
@@ -176,8 +176,6 @@
   console.log('[WL] Bound to #waitlistBtn and #waitlistEmail');
 })();
 </script>
-
-
 </body>
 </html>
 
