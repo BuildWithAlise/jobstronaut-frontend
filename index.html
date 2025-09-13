@@ -135,13 +135,18 @@
 
 <!-- Point frontend to Render backend -->
 <script>
-  window.__API_BASE = 'https://jobstronaut-backend1.onrender.com';
+  // Use local backend when running locally; Render in prod
+  if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+    window.__API_BASE = 'http://127.0.0.1:5000';
+  } else {
+    window.__API_BASE = 'https://jobstronaut-backend1.onrender.com';
+  }
 </script>
 
 <!-- Your working upload script -->
 <script src="app.js?v=3" defer></script>
 
-<!-- Minimal inline waitlist binder -->
+<!-- Minimal inline waitlist binder (keep this) -->
 <script>
 (function () {
   const btn = document.getElementById('waitlistBtn');
@@ -177,6 +182,4 @@
   console.log('[WL] Bound to #waitlistBtn and #waitlistEmail');
 })();
 </script>
-</body>
-</html>
 
