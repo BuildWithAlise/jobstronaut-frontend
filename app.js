@@ -163,12 +163,12 @@ window.__API_BASE =
 })();
 // ... your existing waitlist + helpers ...
 
-// 🚀 Upload handler
-// === Upload handler ===
+
+/// === Upload handler ===
 async function uploadAndSubmit() {
-  const fileInput  = document.getElementById("resumeFile");   // your file input
-  const emailInput = document.getElementById("emailInput");   // optional email
-  const file = fileInput?.files?.[0];
+  const fileInput  = document.getElementById("resumeFile");
+  const emailInput = document.getElementById("emailInput");
+  const file  = fileInput?.files?.[0];
   const email = emailInput?.value?.trim() || "";
 
   if (!file) {
@@ -177,28 +177,23 @@ async function uploadAndSubmit() {
   }
 
   try {
-    // Step 1: presign
+    // Step 1: get presign
     const presignRes = await fetch(`${API_BASE}/s3/presign`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         filename: file.name,
-        contentType: file.type, // important: camelCase
+        contentType: file.type,   // camelCase
         size: file.size,
       }),
     });
     if (!presignRes.ok) throw new Error(`Presign failed: ${presignRes.status}`);
     const { url, headers, key } = await presignRes.json();
 
-    // Step 2: PUT file to S3 (use headers exactly as returned)
-    const putRes = await fetch(url, {
-      method: "PUT",
-      headers,
-      body: file,
-    });
+    // Step 2: PUT file to S3
+    const putRes = await fetch(url, { method: "PUT", headers, body: file });
     if (!putRes.ok) throw new Error(`S3 upload failed: ${putRes.status}`);
 
-    // Step 3: done
     alert("🚀 Upload successful!");
     console.log("[Upload] stored at:", key, "email:", email);
   } catch (err) {
