@@ -201,4 +201,20 @@ async function uploadAndSubmit() {
     alert("Upload failed. Open DevTools → Network for details.");
   }
 }
+// --- bind the Upload button safely ---
+(function bindUploadButton() {
+  function doBind() {
+    const btn = document.getElementById("uploadBtn");
+    if (btn && !btn.dataset.bound) {
+      btn.addEventListener("click", uploadAndSubmit);
+      btn.dataset.bound = "1"; // prevent double-binds
+      console.log("[Jobstronaut] Upload button bound.");
+    }
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", doBind);
+  } else {
+    doBind();
+  }
+})();
 
