@@ -164,48 +164,46 @@ window.__API_BASE =
 // ... your existing waitlist + helpers ...
 
 // 🚀 Upload handler
+// === Upload handler ===
 async function uploadAndSubmit() {
-  const fileInput = document.getElementById("resumeFile");
-  const emailInput = document.getElementById("emailInput");
-  const file = fileInput.files[0];
-  const email = emailInput.value || "";
+  const fileInput  = document.getElementById("resumeFile");   // your file input
+  const emailInput = document.getElementById("emailInput");   // optional email
+  const file = fileInput?.files?.[0];
+  const email = emailInput?.value?.trim() || "";
 
   if (!file) {
-    alert("Please choose a file first!");
+    alert("Please choose a PDF first!");
     return;
   }
 
   try {
-    // Step 1: Get presigned URL from backend
+    // Step 1: presign
     const presignRes = await fetch(`${API_BASE}/s3/presign`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         filename: file.name,
-        contentType: file.type,
+        contentType: file.type, // important: camelCase
         size: file.size,
       }),
     });
-
-    if (!presignRes.ok) throw new Error("Presign failed");
+    if (!presignRes.ok) throw new Error(`Presign failed: ${presignRes.status}`);
     const { url, headers, key } = await presignRes.json();
 
-    // Step 2: Upload file directly to S3
+    // Step 2: PUT file to S3 (use headers exactly as returned)
     const putRes = await fetch(url, {
       method: "PUT",
-      headers: headers,
+      headers,
       body: file,
     });
-
     if (!putRes.ok) throw new Error(`S3 upload failed: ${putRes.status}`);
 
-    // Step 3: Confirm success
+    // Step 3: done
     alert("🚀 Upload successful!");
-    console.log("Uploaded:", key, "Email:", email);
-
+    console.log("[Upload] stored at:", key, "email:", email);
   } catch (err) {
     console.error("[Upload error]", err);
-    alert("Upload failed. Check DevTools → Network for details.");
+    alert("Upload failed. Open DevTools → Network for details.");
   }
 }
 
