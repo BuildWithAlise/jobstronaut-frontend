@@ -1,220 +1,123 @@
-// ================================
-// Jobstronaut V2 Frontend Logic
-// ================================
+/* Jobstronaut frontend helpers (safe — no style/UI changes) */
 
-// Auto-pick backend
-window.__API_BASE =
-  (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
-    ? 'http://127.0.0.1:5000'
-    : 'https://jobstronaut-backend1.onrender.com';
+/** Resolve backend base URL */
+const API_BASE = (function () {
+  if (window.API_BASE) return window.API_BASE;
+  if (window.__API_BASE) return window.__API_BASE;
+  const host = location.hostname;
+  if (host === '127.0.0.1' || host === 'localhost') return 'http://127.0.0.1:5000';
+  return 'https://jobstronaut-backend1.onrender.com';
+})();
 
-// ==== Upload Binder ====
-// ---------- Upload binder (safe, no-UI-change) ----------
-(() => {
-  // Pick up your API base if you’ve defined it already; fallback to Render.
-  const API = window.__API_BASE || 'https://jobstronaut-backend1.onrender.com';
-
-  // Try your known IDs; fall back if they aren’t present.
-  const btn    = document.getElementById('uploadBtn') 
-              || document.querySelector('[data-action="upload"]')
-              || document.querySelector('button[type="submit"]');
-
-  const fileEl = document.getElementById('resumeInput')
-              || document.querySelector('input[type="file"]');
-
-  // Optional email field in the left card (don’t break if it’s missing)
-  const emailEl = document.getElementById('emailInput')
-               || document.querySelector('#email') 
-               || document.querySelector('input[type="email"]');
-
-  if (!btn || !fileEl) {
-    console.warn('[UPL] Missing upload button or file input. Skipping binder.');
-    return;
-  }
-
-  async function presign(file, emailOpt) {
-    const contentType = file.type || 'application/pdf'; // safe default for PDFs
-    const payload = {
-      filename: file.name,
-      contentType,            // <-- camelCase (backend requires this)
-      size: file.size,        // number
-      // include email if present & non-empty; server ignores if not used
-      ...(emailOpt ? { email: emailOpt } : {})
-    };
-
-    const res = await fetch(`${API}/s3/presign`, {
-      method: 'POST',
-      cache: 'no-store',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const txt = await res.text();
-    if (!res.ok) {
-      console.error('[UPL] presign failed', res.status, txt);
-      throw new Error(`presign ${res.status}`);
-    }
-    try { return JSON.parse(txt); } catch {
-      throw new Error('bad_presign_json');
-    }
-  }
-
-  async function putToS3(url, headers, file) {
-    // IMPORTANT: use exactly the signed headers returned by the server.
-    const res = await fetch(url, { method: 'PUT', headers, body: file });
-    if (!res.ok) throw new Error(`s3_put ${res.status}`);
-    return true;
-  }
-
+/* ---------------- Waitlist binder ---------------- */
+(function bindWaitlist() {
+  const btn = document.getElementById('waitlistBtn');
+  const input = document.getElementById('waitlistEmail');
+  if (!btn || !input || btn.dataset.bound) return;
   btn.addEventListener('click', async (e) => {
     e.preventDefault();
-    const file = (fileEl.files && fileEl.files[0]) || null;
-    const emailVal = (emailEl && (emailEl.value || '').trim()) || '';
-
-    if (!file) { alert('Choose a PDF first.'); return; }
-    if (file.size > 10 * 1024 * 1024) { alert('Max 10 MB.'); return; }
-
+    const email = (input.value || '').trim();
+    if (!email) return alert('Enter your email first.');
     try {
-      console.log('[UPL] presign start', { name: file.name, size: file.size });
-      const { url, headers, key } = await presign(file, emailVal || undefined);
-      console.log('[UPL] presign ok', { url, headers, key });
-
-      await putToS3(url, headers || {}, file);
-      console.log('[UPL] s3 put ok', key || '(no key returned)');
-      alert('Upload complete ✅');
-      // optional: clear the file input
-      // fileEl.value = '';
+      const res = await fetch(`${API_BASE}/waitlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      alert("🎉 You're on the list!");
+      input.value = '';
     } catch (err) {
-      console.error('[UPL] failed:', err);
-      alert('Upload failed. Check DevTools → Network for details.');
+      console.error('[WL] failed:', err);
+      alert('Waitlist failed. Try again.');
     }
   });
-
-  console.log('[UPL] Bound to upload button + file input.');
+  btn.dataset.bound = '1';
+  console.log('[Jobstronaut] Waitlist bound.');
 })();
 
 
-// ==== Waitlist Binder ====
-// ==== Robust Upload Binder (safe, independent of waitlist) ====
-(() => {
-  if (window.__boundUpload) return;
-  window.__boundUpload = true;
-
-  const API = window.__API_BASE || '';
-  const fileInput = document.getElementById('resumeInput');
-  const emailOpt  = document.getElementById('emailInput');
-
-  const btn       = document.getElementById('uploadBtn');
-
-  if (!btn || !fileInput) {
-    console.warn('[upload] Missing #uploadBtn or #resumeInput');
-    return;
-  }
-
-  const isPDF = f => f && (f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
-  const maxSz = 10 * 1024 * 1024; // 10 MB
-
-  btn.addEventListener('click', async e => {
-    e.preventDefault();
-    const file = fileInput.files && fileInput.files[0];
-    if (!file) return alert('Choose a PDF first.');
-    if (!isPDF(file)) return alert('PDF only.');
-    if (file.size > maxSz) return alert('Max 10 MB.');
-
-    try {
-      // 1) Request presigned URL
-      const pres = await fetch(`${API}/s3/presign`, {
-  method: 'POST',
-  cache: 'no-store',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    filename: file.name,
-    contentType: file.type || 'application/pdf',   // <-- camelCase
-    size: file.size,                                // <-- number
-    email: (emailOpt && emailOpt.value || '').trim() || undefined
-  })
-});
-
-      if (!pres.ok) throw new Error(`presign ${pres.status}: ${await pres.text()}`);
-      const { url, headers } = await pres.json();
-      if (!url) throw new Error('no presign url returned');
-
-      // 2) Upload to S3
-      const put = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/pdf',
-          'x-amz-server-side-encryption': 'AES256',
-          ...(headers || {})
-        },
-        body: file
-      });
-
-      if (!put.ok) throw new Error(`S3 PUT ${put.status}: ${await put.text()}`);
-
-      alert("✅ Uploaded! We’ll email you when your resume is parsed.");
-      fileInput.value = '';
-      if (emailOpt) emailOpt.value = '';
-
-    } catch (err) {
-      console.error('[upload] failed:', err);
-      alert('Upload failed. Check DevTools → Network for details.');
-    }
-  }, { passive: false });
-})();
-// ... your existing waitlist + helpers ...
-
-
-/// === Upload handler ===
+/* ---------------- Upload handler ---------------- */
 async function uploadAndSubmit() {
-  const fileInput  = document.getElementById("resumeFile");
-  const emailInput = document.getElementById("emailInput");
+  const fileInput  = document.getElementById('resumeFile')
+                    || document.getElementById('resumeInput')
+                    || document.querySelector('input[type="file"]');
+  const emailInput = document.getElementById('emailInput')
+                    || document.getElementById('email')
+                    || document.querySelector('input[type="email"]');
+
   const file  = fileInput?.files?.[0];
-  const email = emailInput?.value?.trim() || "";
+  const email = (emailInput?.value || '').trim();
 
   if (!file) {
-    alert("Please choose a PDF first!");
+    alert('Please choose a PDF first!');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    alert('Max 10 MB.');
     return;
   }
 
   try {
-    // Step 1: get presign
     const presignRes = await fetch(`${API_BASE}/s3/presign`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         filename: file.name,
-        contentType: file.type,   // camelCase
+        contentType: file.type || 'application/pdf',
         size: file.size,
-      }),
+        ...(email ? { email } : {})
+      })
     });
-    if (!presignRes.ok) throw new Error(`Presign failed: ${presignRes.status}`);
-    const { url, headers, key } = await presignRes.json();
+    const presignText = await presignRes.text();
+    if (!presignRes.ok) {
+      console.error('[UPL] presign failed', presignRes.status, presignText);
+      throw new Error(`Presign failed: ${presignRes.status}`);
+    }
+    let presigned;
+    try { presigned = JSON.parse(presignText); } catch {
+      throw new Error('Bad presign JSON');
+    }
+    const { url, headers: signedHeaders, key } = presigned;
+    if (!url) throw new Error('No presigned URL returned');
 
-    // Step 2: PUT file to S3
-    const putRes = await fetch(url, { method: "PUT", headers, body: file });
+    const putRes = await fetch(url, {
+      method: 'PUT',
+      headers: signedHeaders || {},
+      body: file
+    });
     if (!putRes.ok) throw new Error(`S3 upload failed: ${putRes.status}`);
 
-    alert("🚀 Upload successful!");
-    console.log("[Upload] stored at:", key, "email:", email);
+    alert('🚀 Upload successful!');
+    console.log('[UPL] stored at:', key || '(no key returned)');
   } catch (err) {
-    console.error("[Upload error]", err);
-    alert("Upload failed. Open DevTools → Network for details.");
+    console.error('[UPL] error:', err);
+    alert('Upload failed. Open DevTools → Network for details.');
   }
 }
-// --- bind the Upload button safely ---
+
+/* ---------------- Bind Upload button ---------------- */
 (function bindUploadButton() {
   function doBind() {
-    const btn = document.getElementById("uploadBtn");
-    if (btn && !btn.dataset.bound) {
-      btn.addEventListener("click", uploadAndSubmit);
-      btn.dataset.bound = "1"; // prevent double-binds
-      console.log("[Jobstronaut] Upload button bound.");
+    const btn = document.getElementById('uploadBtn')
+             || document.querySelector('[data-action="upload"]')
+             || document.querySelector('button[type="submit"]');
+    if (!btn) {
+      console.warn('[Jobstronaut] #uploadBtn not found.');
+      return;
     }
+    if (btn.dataset.bound) return;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      uploadAndSubmit();
+    });
+    btn.dataset.bound = '1';
+    console.log('[Jobstronaut] Upload button bound.');
   }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", doBind);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', doBind);
   } else {
     doBind();
   }
 })();
-
