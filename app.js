@@ -20,31 +20,35 @@
       const presData = await pres.json();
       const putUrl = presData.url;
 
-      // Step 2: PUT to S3 (with required headers)
+      // Step 2: Upload to S3 with required headers
       const putRes = await fetch(putUrl, {
         method: "PUT",
         headers: {
           "Content-Type": file.type || "application/pdf",
-          "x-amz-server-side-encryption": "AES256"   // ✅ FIXED
+          "x-amz-server-side-encryption": "AES256"   // ✅ required by presign
         },
         body: file
       });
 
       if (!putRes.ok) {
-        throw new Error(`S3 upload failed: ${putRes.status}`);
+        const text = await putRes.text();
+        throw new Error(`S3 upload failed: ${putRes.status} - ${text}`);
       }
       console.log("✅ Upload successful");
 
-      // Step 3: Call waitlist with email
+      // Step 3: Call waitlist API
       const wl = await fetch(`${B}/waitlist`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
       });
 
-      if (!wl.ok) throw new Error(`Waitlist failed: ${wl.status}`);
-      console.log("✅ Waitlist joined");
+      if (!wl.ok) {
+        const text = await wl.text();
+        throw new Error(`Waitlist failed: ${wl.status} - ${text}`);
+      }
 
+      console.log("✅ Waitlist joined");
       alert("Upload + Waitlist success!");
     } catch (err) {
       console.error("[UPL] error:", err);
