@@ -39,85 +39,86 @@ const API_BASE = (function () {
 
 /* ---------------- Upload handler ---------------- */
 async function uploadAndSubmit() {
-  const fileInput  = document.getElementById('resumeFile')
-                    || document.getElementById('resumeInput')
-                    || document.querySelector('input[type="file"]');
-  const emailInput = document.getElementById('emailInput')
-                    || document.getElementById('email')
-                    || document.querySelector('input[type="email"]');
-
-  const file  = fileInput?.files?.[0];
-  const email = (emailInput?.value || '').trim();
+  const fileInput = document.querySelector('input[type="file"]');
+  const file = fileInput.files[0];
 
   if (!file) {
-    alert('Please choose a PDF first!');
-    return;
-  }
-  if (file.size > 10 * 1024 * 1024) {
-    alert('Max 10 MB.');
+    alert("Please select a PDF before uploading.");
     return;
   }
 
+  console.log("[UPLOAD] Starting upload for:", file.name, file.type);
+
+  // 1. Get presigned URL from backend
+  let pres;
   try {
-    const presignRes = await fetch(`${API_BASE}/s3/presign`, {
-      method: 'POST',
-      cache: 'no-store',
-      headers: { 'Content-Type': 'application/json' },
+    const resp = await fetch("https://jobstronaut-backend1.onrender.com/s3/presign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         filename: file.name,
-        contentType: file.type || 'application/pdf',
-        size: file.size,
-        ...(email ? { email } : {})
+        contentType: file.type || "application/pdf"
       })
     });
-    const presignText = await presignRes.text();
-    if (!presignRes.ok) {
-      console.error('[UPL] presign failed', presignRes.status, presignText);
-      throw new Error(`Presign failed: ${presignRes.status}`);
-    }
-    let presigned;
-    try { presigned = JSON.parse(presignText); } catch {
-      throw new Error('Bad presign JSON');
-    }
-    const { url, headers: signedHeaders, key } = presigned;
-    if (!url) throw new Error('No presigned URL returned');
 
-    const putRes = await fetch(url, {
-      method: 'PUT',
-      headers: signedHeaders || {},
-      body: file
-    });
-    if (!putRes.ok) throw new Error(`S3 upload failed: ${putRes.status}`);
+    console.log("[PRESIGN] Status:", resp.status);
 
-    alert('🚀 Upload successful!');
-    console.log('[UPL] stored at:', key || '(no key returned)');
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error("Presign failed: " + text);
+    }
+
+    pres = await resp.json();
+    console.log("[PRESIGN] Response:", pres);
   } catch (err) {
-    console.error('[UPL] error:', err);
-    alert('Upload failed. Open DevTools → Network for details.');
+    console.error("[PRESIGN ERROR]", err);
+    alert("Presign failed. Check console.");
+    return;
+  }
+
+  // 2. Upload file directly to S3
+  try {
+    const putRes = await fetch(putUrl, {
+  method: "PUT",
+  headers: {
+    "Content-Type": file.type || "application/pdf",
+    "x-amz-server-side-encryption": "AES256"   // <-- MUST match signed headers
+  },
+  body: file
+});
+
+
+    console.log("[UPLOAD] PUT status:", putResp.status);
+
+    if (!putResp.ok) {
+      const text = await putResp.text();
+      throw new Error("S3 upload failed: " + text);
+    }
+  } catch (err) {
+    console.error("[UPLOAD ERROR]", err);
+    alert("Upload failed. Check console.");
+    return;
+  }
+
+  // 3. Notify backend waitlist (optional step)
+  try {
+    const wlResp = await fetch("https://jobstronaut-backend1.onrender.com/waitlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: document.querySelector('input[type="email"]').value })
+    });
+
+    console.log("[WAITLIST] Status:", wlResp.status);
+
+    if (!wlResp.ok) {
+      const text = await wlResp.text();
+      throw new Error("Waitlist failed: " + text);
+    }
+
+    alert("✅ Upload + waitlist successful!");
+  } catch (err) {
+    console.error("[WAITLIST ERROR]", err);
+    alert("Upload ok, but waitlist failed. Check console.");
   }
 }
 
-/* ---------------- Bind Upload button ---------------- */
-(function bindUploadButton() {
-  function doBind() {
-    const btn = document.getElementById('uploadBtn')
-             || document.querySelector('[data-action="upload"]')
-             || document.querySelector('button[type="submit"]');
-    if (!btn) {
-      console.warn('[Jobstronaut] #uploadBtn not found.');
-      return;
-    }
-    if (btn.dataset.bound) return;
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      uploadAndSubmit();
-    });
-    btn.dataset.bound = '1';
-    console.log('[Jobstronaut] Upload button bound.');
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', doBind);
-  } else {
-    doBind();
-  }
-})();
