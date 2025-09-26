@@ -22,13 +22,14 @@
 
       // Step 2: Upload to S3 with required headers
       const putRes = await fetch(putUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type || "application/pdf",
-          "x-amz-server-side-encryption": "AES256"   // ✅ required by presign
-        },
-        body: file
-      });
+  method: "PUT",
+  headers: {
+    "Content-Type": file.type || "application/pdf",
+    "x-amz-server-side-encryption": "AES256"   // ✅ add this line
+  },
+  body: file
+});
+
 
       if (!putRes.ok) {
         const text = await putRes.text();
