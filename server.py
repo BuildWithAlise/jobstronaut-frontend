@@ -117,19 +117,7 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 def _handle_waitlist():
     data = request.get_json(force=True, silent=True) or {}
     email = (data.get("email") or "").strip().lower()
-
-    if not EMAIL_RE.match(email):
-        return jsonify({"error": "invalid_email", "message": "Enter a valid email."}), 400
-
-    entry = {
-        "email": email,
-        "ts": int(time.time()),
-        "ua": request.headers.get("User-Agent", "")[:300],
-        "ref": request.headers.get("Referer", "")[:300],
-    }
-
-    key = f"waitlist/{int(time.time())}_{uuid.uuid4().hex}.json"
-
+    ...
     s3.put_object(
         Bucket=S3_BUCKET,
         Key=key,
@@ -137,9 +125,9 @@ def _handle_waitlist():
         ContentType="application/json",
         ServerSideEncryption="AES256",
     )
-
-    app.logger.info("waitlist_signup email=%s key=%s", email, key)
+    ...
     return jsonify({"ok": True})
+
 
 @app.post("/waitlist")
 @ratelimit
