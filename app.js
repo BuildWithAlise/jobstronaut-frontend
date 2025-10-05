@@ -7,16 +7,23 @@
 /* app.js v9 – Jobstronaut Closed Beta (safe bindings + AES256 PUT) */
 
 // at the very top of app.js
+/* Jobstronaut frontend helpers (safe — no style/UI changes) */
+
+/** Resolve backend base URL */
+/* app.js v9 – Jobstronaut Closed Beta (safe bindings + AES256 PUT) */
+
+// at the very top of app.js
+/* Jobstronaut frontend helpers (safe — no style/UI changes) */
+/* Resolve backend base URL */
 const isLocal = ["127.0.0.1", "localhost"].includes(location.hostname);
 window.__API_BASE = window.__API_BASE || (isLocal
   ? "http://127.0.0.1:5000"
   : "https://jobstronaut-backend1.onrender.com");
 const B = window.__API_BASE;
 
+/* app.js v9 – Jobstronaut Closed Beta (safe bindings + AES256 PUT) */
 (() => {
   "use strict";
-
-  const B = (window && window.__API_BASE) || "https://jobstronaut-backend1.onrender.com";
 
   // tiny helpers
   const q = (s) => document.querySelector(s);
@@ -34,7 +41,7 @@ const B = window.__API_BASE;
     if (!file) throw new Error("No file");
     const ct = file.type || "application/pdf";
 
-    // 1) get presigned PUT url
+    // 1) presign
     const pres = await jfetch(`${B}/s3/presign`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -43,7 +50,7 @@ const B = window.__API_BASE;
         contentType: ct
       })
     });
-    if (!pres.ok || !pres.json || !pres.json.url) {
+    if (!pres.ok || !pres.json?.url) {
       throw new Error(`/s3/presign failed: ${pres.status} ${pres.text}`);
     }
 
@@ -123,5 +130,6 @@ const B = window.__API_BASE;
     bindOnce();
   }
 })();
+
 
 
