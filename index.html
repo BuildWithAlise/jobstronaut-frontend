@@ -145,29 +145,30 @@
 (function () {
   const btn = document.getElementById('waitlistBtn');
   const input = document.getElementById('waitlistEmail');
-  })();
-</script>
   if (!btn || !input) return;
+
   async function join(email) {
-    const res = await fetch(window.__API_BASE + '/waitlist', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
+    const res = await fetch((window.__API_BASE || "https://jobstronaut-backend1.onrender.com") + '/waitlist', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ email: (email||'').trim() })
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
   }
+
   btn.addEventListener('click', async (e) => {
     e.preventDefault();
     const email = (input.value || '').trim();
     if (!email) return;
-    try { await join(email); input.value = ''; } catch {}
+    try {
+      await join(email);
+      input.value = '';
+      alert('✅ Added to waitlist');
+    } catch (e) {
+      console.error('[waitlist]', e);
+      alert('Waitlist failed');
+    }
   });
 })();
-<script>
-  // TEMP: Force-unregister any service workers to stop caching POSTs.
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(regs => {
-      for (const r of regs) r.unregister();
-    }).catch(()=>{});
-  }
 </script>
 
