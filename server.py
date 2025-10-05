@@ -115,31 +115,34 @@ def presign():
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def _handle_waitlist():
-    data = request.get_json(force=True, silent=True) or {}
-    email = (data.get("email") or "").strip().lower()
-    ...
-    s3.put_object(
-        Bucket=S3_BUCKET,
-        Key=key,
-        Body=json.dumps(entry).encode("utf-8"),
-        ContentType="application/json",
-        ServerSideEncryption="AES256",
-    )
-    ...
-    return jsonify({"ok": True})
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        email = (data.get("email") or "").strip().lower()
 
+        if not EMAIL_RE.match(email):
+            return jsonify({"error": "invalid_email", "message": "Enter a valid email."}), 400
 
-@app.post("/waitlist")
-@ratelimit
-def waitlist():
-    return _handle_waitlist()
+        entry = {
+            "email": email,
+            "ts": int(time.time()),
+            "ua": request.headers.get("User-Agent", "")[:300],
+            "ref": request.headers.get("Referer", "")[:300],
+        }
 
-# alias for older frontend calling /waitlist/join
-@app.post("/waitlist/join")
-@ratelimit
-def waitlist_join():
-    return _handle_waitlist()
+        key = f"waitlist/{int(time.time())}_{uuid.uuid4().hex}.json"
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+        s3.put_object(
+            Bucket=S3_BUCKET,
+            Key=key,
+            Body=json.dumps(entry).encode("utf-8"),
+            ContentType="application/json",
+            ServerSideEncryption="AES256",
+        )
+
+        app.logger.info("waitlist_signup email=%s key=%s", email, key)
+        return jsonify({"ok": True})
+
+    except Exception as e:
+        app.logger.error(f"[waitlist] unexpected error: {e}", exc_info=True)
+        return jsonify({"error": "internal_error", "message": "Waitlist failed"}), 500
 
