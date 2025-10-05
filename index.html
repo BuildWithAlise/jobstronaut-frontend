@@ -147,7 +147,6 @@
   const input = document.getElementById('waitlistEmail');
   })();
 </script>
-
   if (!btn || !input) return;
   async function join(email) {
     const res = await fetch(window.__API_BASE + '/waitlist', {
