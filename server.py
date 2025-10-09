@@ -13,11 +13,6 @@
 # ===============================================================
 # Jobstronaut™ Backend — healthz + waitlist (region-aware S3)
 # ===============================================================
-
-# ===============================================================
-# Jobstronaut™ Backend — healthz + waitlist (region-aware S3)
-# ===============================================================
-
 import os, json, time, traceback
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify
@@ -27,7 +22,7 @@ from botocore.config import Config
 # ---- Flask app FIRST ------------------------------------------
 app = Flask(__name__)
 
-# ---- CORS ------------------------------------------------------
+# ---- CORS (allow-list) ----------------------------------------
 ALLOWED_ORIGINS = {
     "https://jobstronaut.dev",
     "https://jobstronaut-frontend.onrender.com",
@@ -52,9 +47,9 @@ def add_cors(resp):
     resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return resp
 
-# ---- S3 helpers ------------------------------------------------
-S3_BUCKET  = os.getenv("S3_BUCKET", "jobstronaut-resumes").strip()
-DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION", os.getenv("AWS_REGION", "us-east-1"))
+# ---- S3 helpers -----------------------------------------------
+S3_BUCKET       = os.getenv("S3_BUCKET", "jobstronaut-resumes").strip()
+DEFAULT_REGION  = os.getenv("AWS_DEFAULT_REGION", os.getenv("AWS_REGION", "us-east-1"))
 
 def _s3(region=None):
     return boto3.client(
@@ -64,11 +59,11 @@ def _s3(region=None):
     )
 
 def s3_for_bucket(bucket_name: str):
-    """Return a client bound to the bucket's real region to avoid SignatureDoesNotMatch."""
+    """Use the bucket's real region to avoid SignatureDoesNotMatch."""
     b = (bucket_name or "").strip()
     probe = _s3(DEFAULT_REGION)
     loc = probe.get_bucket_location(Bucket=b).get("LocationConstraint")
-    real = loc or "us-east-1"   # AWS returns None for us-east-1
+    real = loc or "us-east-1"
     if real == DEFAULT_REGION:
         return probe, real
     return _s3(real), real
@@ -108,12 +103,13 @@ def waitlist():
         )
 
         return jsonify(ok=True, bucket=S3_BUCKET, region=real_region, key=key), 200
+
     except Exception as e:
         app.logger.error("waitlist failed: %s", e)
         app.logger.error(traceback.format_exc())
         return jsonify(error=str(e)), 500
 
-# ---- Local dev -------------------------------------------------
+# ---- Local run -------------------------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)
 
