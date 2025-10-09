@@ -31,6 +31,58 @@ s3 = boto3.client("s3", region_name=S3_REGION, config=Config(signature_version="
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
+    
+ import traceback, json, time
+from datetime import datetime, timezone
+
+def s3_for_bucket(bucket_name: str):
+    from botocore.config import Config
+    import boto3, os
+    default_region = os.getenv("AWS_DEFAULT_REGION", os.getenv("AWS_REGION", "us-east-1"))
+    probe = boto3.client("s3", region_name=default_region,
+                         config=Config(signature_version="s3v4", s3={"addressing_style": "virtual"}))
+    loc = probe.get_bucket_location(Bucket=bucket_name).get("LocationConstraint")
+    real_region = loc or "us-east-1"
+    if real_region == default_region:
+        return probe, real_region
+    return boto3.client("s3", region_name=real_region,
+                        config=Config(signature_version="s3v4", s3={"addressing_style": "virtual"})), real_region
+
+@app.route("/waitlist", methods=["POST","OPTIONS"])
+def waitlist():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    try:
+        data = request.get_json(silent=True) or {}
+        email = (data.get("email") or "").strip()
+        if not email:
+            return jsonify(error="email required"), 400
+
+        record = {
+            "email": email,
+            "ts": int(time.time()),
+            "iso": datetime.now(timezone.utc).isoformat(),
+        }
+
+        bucket = os.getenv("S3_BUCKET", "jobstronaut-resumes").strip()
+        key = f"waitlist/{record['ts']}_{email.replace('@','_at_')}.json"
+
+        s3, real_region = s3_for_bucket(bucket)
+        app.logger.info(f"Uploading to {bucket} in {real_region} as {key}")
+
+        s3.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=json.dumps(record).encode("utf-8"),
+            ContentType="application/json",
+            ServerSideEncryption="AES256",
+        )
+
+        return jsonify(ok=True, bucket=bucket, region=real_region, key=key), 200
+    except Exception as e:
+        app.logger.error(traceback.format_exc())
+        return jsonify(error=str(e)), 500
+
 
 # --- rate limit config ---
 RATE = {"ip": (30, 600), "email": (10, 600)}  # (count, window_sec)
