@@ -21,6 +21,13 @@ from botocore.config import Config
 
 # ---- Flask app FIRST ------------------------------------------
 app = Flask(__name__)
+@app.errorhandler(Exception)
+def _json_errors(e):
+    import traceback
+    app.logger.error("UNHANDLED: %s", e)
+    app.logger.error(traceback.format_exc())
+    return jsonify(error=str(e)), 500
+
 
 # ---- CORS (allow-list) ----------------------------------------
 ALLOWED_ORIGINS = {
@@ -108,6 +115,27 @@ def waitlist():
         app.logger.error("waitlist failed: %s", e)
         app.logger.error(traceback.format_exc())
         return jsonify(error=str(e)), 500
+        
+@app.get("/diag")
+def diag():
+    try:
+        import boto3, os
+        from botocore.config import Config
+        bkt = os.getenv("S3_BUCKET", "jobstronaut-resumes").strip()
+        reg = os.getenv("AWS_DEFAULT_REGION", os.getenv("AWS_REGION", "us-east-1"))
+        sts = boto3.client("sts")
+        who = sts.get_caller_identity()
+        s3  = boto3.client("s3", region_name=reg,
+                           config=Config(signature_version="s3v4", s3={"addressing_style": "virtual"}))
+        loc = s3.get_bucket_location(Bucket=bkt).get("LocationConstraint") or "us-east-1"
+        return jsonify(ok=True, bucket=bkt, env_region=reg, bucket_region=loc,
+                       account=who.get("Account"), arn=who.get("Arn")), 200
+    except Exception as e:
+        import traceback
+        app.logger.error("diag failed: %s", e)
+        app.logger.error(traceback.format_exc())
+        return jsonify(error=str(e)), 500
+
 
 # ---- Local run -------------------------------------------------
 if __name__ == "__main__":
