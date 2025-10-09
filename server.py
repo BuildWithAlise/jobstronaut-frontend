@@ -14,16 +14,20 @@
 # Jobstronaut™ Backend — healthz + waitlist (region-aware S3)
 # ===============================================================
 
+# ===============================================================
+# Jobstronaut™ Backend — healthz + waitlist (region-aware S3)
+# ===============================================================
+
 import os, json, time, traceback
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify
 import boto3
 from botocore.config import Config
 
-# ---- Flask app FIRST (before any @app.route) -------------------
+# ---- Flask app FIRST ------------------------------------------
 app = Flask(__name__)
 
-# ---- CORS (multi-origin allow-list, no newline crashes) --------
+# ---- CORS ------------------------------------------------------
 ALLOWED_ORIGINS = {
     "https://jobstronaut.dev",
     "https://jobstronaut-frontend.onrender.com",
@@ -48,8 +52,8 @@ def add_cors(resp):
     resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return resp
 
-# ---- Config -----------------------------------------------------
-S3_BUCKET = os.getenv("S3_BUCKET", "jobstronaut-resumes").strip()
+# ---- S3 helpers ------------------------------------------------
+S3_BUCKET  = os.getenv("S3_BUCKET", "jobstronaut-resumes").strip()
 DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION", os.getenv("AWS_REGION", "us-east-1"))
 
 def _s3(region=None):
@@ -69,17 +73,16 @@ def s3_for_bucket(bucket_name: str):
         return probe, real
     return _s3(real), real
 
-# ---- Health -----------------------------------------------------
+# ---- Health ----------------------------------------------------
 @app.get("/healthz")
 def healthz():
     return jsonify(ok=True), 200
 
-# ---- Waitlist ---------------------------------------------------
+# ---- Waitlist --------------------------------------------------
 @app.route("/waitlist", methods=["POST", "OPTIONS"])
 def waitlist():
     if request.method == "OPTIONS":
         return ("", 204)
-
     try:
         data = request.get_json(silent=True) or {}
         email = (data.get("email") or "").strip()
@@ -105,13 +108,12 @@ def waitlist():
         )
 
         return jsonify(ok=True, bucket=S3_BUCKET, region=real_region, key=key), 200
-
     except Exception as e:
         app.logger.error("waitlist failed: %s", e)
         app.logger.error(traceback.format_exc())
         return jsonify(error=str(e)), 500
 
-# ---- Local run --------------------------------------------------
+# ---- Local dev -------------------------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)
 
