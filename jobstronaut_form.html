@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jobstronaut Resume Upload</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0d0d0d;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 40px;
+    }
+    form {
+      background: #1a1a1a;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 400px;
+      width: 100%;
+    }
+    input, button {
+      width: 100%;
+      margin: 8px 0;
+      padding: 10px;
+      border-radius: 5px;
+      border: none;
+    }
+    button {
+      background: #ff6600;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #ff8533;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚀 Jobstronaut</h1>
+  <p>Submit your resume for launch</p>
+  <form id="resumeForm" enctype="multipart/form-data">
+    <input type="text" name="name" placeholder="Your name" required />
+    <input type="email" name="email" placeholder="Your email" required />
+    <input type="file" name="resume" accept=".pdf,.doc,.docx" required />
+    <button type="submit">Submit</button>
+  </form>
+  
+  <script>
+    const form = document.getElementById("resumeForm");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch("http://127.0.0.1:10000/submit", {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        alert(data.message || "Upload complete!");
+      } catch (err) {
+        alert("Error uploading: " + err.message);
+      }
+    });
+  </script>
+</body>
+</html>
+
