@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Privacy | Jobstronaut</title>
+  <style>
+    body { font-family: system-ui; color: #fff; background:#0b0b15; max-width: 700px; margin: 2rem auto; line-height: 1.6; }
+    h1 { color: #ff8c00; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Notice</h1>
+  <p>We value your privacy. Jobstronaut stores only:</p>
+  <ul>
+    <li>Your email address (for the waitlist)</li>
+    <li>Upload key metadata for resume files</li>
+  </ul>
+  <p>No resumes are shared publicly. You can request deletion anytime at <b>hello@jobstronaut.dev</b>.</p>
+</body>
+</html>
+
