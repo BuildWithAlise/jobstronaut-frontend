@@ -135,6 +135,82 @@ def diag():
         app.logger.error("diag failed: %s", e)
         app.logger.error(traceback.format_exc())
         return jsonify(error=str(e)), 500
+        
+        # --- Test email trigger (locked down) ---
+@app.route("/test/email", methods=["POST"])
+def test_email():
+    # simple guard so randoms can’t hit it
+    secret = os.getenv("ADMIN_SECRET", "")
+    if not secret or request.headers.get("X-Admin-Secret") != secret:
+        return jsonify({"error": "unauthorized"}), 401
+
+    body = request.get_json(force=True, silent=True) or {}
+    to_email = (body.get("to") or os.getenv("TEST_EMAIL") or "").strip()
+    if not to_email:
+        return jsonify({"error": "missing 'to' (or TEST_EMAIL env)"}), 400
+
+    try:
+        # If you created send_join_email(to_email), prefer this:
+        try:
+            send_join_email(to_email)   # comment this out if you don't have it
+        except NameError:
+            # Fallback: direct Resend call
+            import resend
+            resend.api_key = os.getenv("RESEND_API_KEY", "")
+            resend.Emails.send({
+                "from": os.getenv("FROM_EMAIL", "hello@jobstronaut.dev"),
+                "to": [to_email],
+                "subject": "Jobstronaut test email ✅",
+                "html": (
+                    "<h2>Jobstronaut test ✅</h2>"
+                    "<p>This was sent from your verified domain.</p>"
+                    "<p>— Team Jobstronaut</p>"
+                )
+            })
+        return jsonify({"ok": True, "to": to_email})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/diag", methods=["GET"])
+def diag():
+    ...
+    return jsonify({"ok": True, "details": "diagnostic info"})
+
+# 👇 Add the new route right below this section
+@app.route("/test/email", methods=["POST"])
+def test_email():
+    secret = os.getenv("ADMIN_SECRET", "")
+    if not secret or request.headers.get("X-Admin-Secret") != secret:
+        return jsonify({"error": "unauthorized"}), 401
+
+    body = request.get_json(force=True, silent=True) or {}
+    to_email = (body.get("to") or os.getenv("TEST_EMAIL") or "").strip()
+    if not to_email:
+        return jsonify({"error": "missing 'to'"}), 400
+
+    try:
+        import resend
+        resend.api_key = os.getenv("RESEND_API_KEY", "")
+        resend.Emails.send({
+            "from": os.getenv("FROM_EMAIL", "hello@jobstronaut.dev"),
+            "to": [to_email],
+            "subject": "Jobstronaut test email ✅",
+            "html": (
+                "<h2>Jobstronaut test ✅</h2>"
+                "<p>This was sent from your verified domain.</p>"
+                "<p>— Team Jobstronaut</p>"
+            )
+        })
+        app.logger.info("✅ Sent test email to %s", to_email)
+        return jsonify({"ok": True, "to": to_email}), 200
+    except Exception as e:
+        app.logger.error("❌ Test email failed: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+
+# 👇 Leave this at the very end
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
 
 
 # ---- Local run -------------------------------------------------
