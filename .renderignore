@@ -1,0 +1,15 @@
+.venv/
+venv/
+__pycache__/
+*.py
+*.pyc
+pip-*/
+poetry.lock
+.git/
+.github/
+README.md
+LICENSE
+*.md
+node_modules/
+scripts/
+tests/
