@@ -1,135 +1,55 @@
-/* Jobstronaut frontend helpers (safe — no style/UI changes) */
+// === Jobstronaut Mission Control UI Logic ===
 
-/** Resolve backend base URL */
-/* Jobstronaut frontend helpers (safe — no style/UI changes) */
-
-/** Resolve backend base URL */
-/* app.js v9 – Jobstronaut Closed Beta (safe bindings + AES256 PUT) */
-
-// at the very top of app.js
-/* Jobstronaut frontend helpers (safe — no style/UI changes) */
-
-/** Resolve backend base URL */
-/* app.js v9 – Jobstronaut Closed Beta (safe bindings + AES256 PUT) */
-
-// at the very top of app.js
-/* Jobstronaut frontend helpers (safe — no style/UI changes) */
-/* Resolve backend base URL */
-const isLocal = ["127.0.0.1", "localhost"].includes(location.hostname);
-window.__API_BASE = window.__API_BASE || (isLocal
-  ? "http://127.0.0.1:5000"
-  : "https://jobstronaut-backend1.onrender.com");
-const B = window.__API_BASE;
-
-/* app.js v9 – Jobstronaut Closed Beta (safe bindings + AES256 PUT) */
-(() => {
-  "use strict";
-
-  // tiny helpers
-  const q = (s) => document.querySelector(s);
-  const ok = (m) => alert(`✅ ${m}`);
-  const err = (m, e) => { console.error(m, e); alert(`${m}\n(Check console)`); };
-
-  async function jfetch(url, opts) {
-    const r = await fetch(url, opts);
-    const t = await r.text();
-    let j = null; try { j = JSON.parse(t); } catch {}
-    return { ok: r.ok, status: r.status, json: j, text: t };
+// Reuse your existing button logic if needed
+document.addEventListener("DOMContentLoaded", () => {
+  const healthBtn = document.getElementById("healthBtn");
+  if (healthBtn) {
+    healthBtn.addEventListener("click", checkSystemStatus);
   }
+});
 
-  async function uploadAndWaitlist(file, email) {
-    if (!file) throw new Error("No file");
-    const ct = file.type || "application/pdf";
+let statusInterval;
 
-    // 1) presign
-    const pres = await jfetch(`${B}/s3/presign`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        filename: `${Date.now()}_${(file.name || "resume.pdf").replace(/\s+/g, "_")}`,
-        contentType: ct
-      })
-    });
-    if (!pres.ok || !pres.json?.url) {
-      throw new Error(`/s3/presign failed: ${pres.status} ${pres.text}`);
-    }
+// === Overlay Logic ===
+async function checkSystemStatus() {
+  const overlay = createStatusOverlay();
+  const text = document.getElementById("statusText");
+  overlay.style.display = "block";
+  text.textContent = "Initializing Mission Telemetry...";
 
-    // 2) PUT with AES256
-    const put = await fetch(pres.json.url, {
-      method: "PUT",
-      headers: {
-        "Content-Type": ct,
-        "x-amz-server-side-encryption": "AES256"
-      },
-      body: file
-    });
-    if (!put.ok) throw new Error(`S3 upload failed: ${put.status}`);
+  await fetchAndUpdateStatus();
 
-    // 3) waitlist
-    const wl = await jfetch(`${B}/waitlist`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email })
-    });
-    if (!wl.ok) throw new Error(`/waitlist failed: ${wl.status} ${wl.text}`);
-  }
+  // Auto-refresh every 10 seconds
+  clearInterval(statusInterval);
+  statusInterval = setInterval(fetchAndUpdateStatus, 10000);
+}
 
-  async function onlyWaitlist(email) {
-    const wl = await jfetch(`${B}/waitlist`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email })
-    });
-    if (!wl.ok) throw new Error(`/waitlist failed: ${wl.status} ${wl.text}`);
-  }
+function closeStatus() {
+  document.getElementById("statusOverlay").remove();
+  clearInterval(statusInterval);
+}
 
-  function bindOnce() {
-    const uploadBtn  = q("#uploadBtn") || q("#uploadSubmit");
-    const fileInput  = q("#resumeInput") || q("input[type='file']");
-    const emailInput = q("#emailInput") || q("input[type='email']");
-    const waitBtn    = q("#waitlistBtn") || q(".joinWaitlist");
-    const waitEmail  = q("#waitlistEmail") || q("input[name='waitlist']") || q("input[type='email']");
+function createStatusOverlay() {
+  // If already exists, reuse it
+  let overlay = document.getElementById("statusOverlay");
+  if (overlay) return overlay;
 
-    if (uploadBtn && fileInput) {
-      uploadBtn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        try {
-          const file = fileInput.files && fileInput.files[0];
-          if (!file) return alert("Pick a file first!");
-          const email = (emailInput && emailInput.value
-                          ? emailInput.value
-                          : `beta+${Date.now()}@example.com`).trim();
-          await uploadAndWaitlist(file, email);
-          ok("Upload + waitlist success!");
-        } catch (e) { err("Upload failed.", e); }
-      });
-      console.log("[bind] upload button bound");
-    } else {
-      console.warn("[bind] upload elements not found");
-    }
+  overlay = document.createElement("div");
+  overlay.id = "statusOverlay";
+  overlay.style.cssText = `
+    display:none;
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(10,0,19,0.95);
+    color:#f0f0f0;
+    font-family:'Orbitron', system-ui, sans-serif;
+    text-align:center;
+    z-index:9999;
+    animation: fadeIn 0.6s ease forwards;
+  `;
 
-    if (waitBtn && waitEmail) {
-      waitBtn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        try {
-          const email = (waitEmail.value || "").trim();
-          if (!email) return alert("Enter your email.");
-          await onlyWaitlist(email);
-          ok("Added to waitlist");
-        } catch (e) { err("Waitlist failed.", e); }
-      });
-      console.log("[bind] waitlist button bound");
-    } else {
-      console.warn("[bind] waitlist elements not found");
-    }
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bindOnce, { once: true });
-  } else {
-    bindOnce();
-  }
-})();
-
-
+  overlay.innerHTML = `
+    <div style="margin-top:15%;padding:20px;">
+      <h1 style="color:#9
 
