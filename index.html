@@ -134,4 +134,39 @@
 <script src="/app.js?v=9" defer></script>
 </body>
 </html>
+:root {
+  --bg: #0a0013;
+  --fg: #f0f0f0;
+  --accent: #9c7aff;
+  --accent2: #ff8c42;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  transition: background 1s ease, color 0.6s ease;
+}
+
+/* Light modes */
+.mode-pearl {
+  --bg: #F5EBDA;
+  --fg: #101010;
+  --accent: #7A5FFF;
+  --accent2: #FF8C42;
+}
+
+.mode-lunar {
+  --bg: #EDEDED;
+  --fg: #101010;
+  --accent: #7A5FFF;
+  --accent2: #3A6EA5;
+}
+
+/* Night mode (default) */
+.mode-cosmic {
+  --bg: #0A0013;
+  --fg: #F0F0F0;
+  --accent: #9C7AFF;
+  --accent2: #FF8C42;
+}
 
