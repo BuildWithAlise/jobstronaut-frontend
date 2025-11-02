@@ -1,135 +1,86 @@
-/* Jobstronaut frontend helpers (safe — no style/UI changes) */
+// ===========================================================
+// Jobstronaut™ Frontend — Stable Upload + Waitlist v1
+// ===========================================================
 
-/** Resolve backend base URL */
-/* Jobstronaut frontend helpers (safe — no style/UI changes) */
+console.log("[Jobstronaut] frontend initializing…");
 
-/** Resolve backend base URL */
-/* app.js v9 – Jobstronaut Closed Beta (safe bindings + AES256 PUT) */
+// Use the verified backend endpoint
+const BACKEND = "https://jobstronaut-backend1.onrender.com";
 
-// at the very top of app.js
-/* Jobstronaut frontend helpers (safe — no style/UI changes) */
+// Utility: error handler
+function err(e) {
+  console.error("Upload/Waitlist error:", e);
+  alert("Something went wrong — please retry or check connection.");
+}
 
-/** Resolve backend base URL */
-/* app.js v9 – Jobstronaut Closed Beta (safe bindings + AES256 PUT) */
+// Bind once to upload button
+function bindOnce() {
+  const uploadBtn = document.querySelector("#uploadBtn");
+  const resumeInput = document.querySelector("#resumeInput");
+  const waitlistBtn = document.querySelector("#waitlistBtn");
+  const emailInput = document.querySelector("#emailInput");
 
-// at the very top of app.js
-/* Jobstronaut frontend helpers (safe — no style/UI changes) */
-/* Resolve backend base URL */
-const isLocal = ["127.0.0.1", "localhost"].includes(location.hostname);
-window.__API_BASE = window.__API_BASE || (isLocal
-  ? "http://127.0.0.1:5000"
-  : "https://jobstronaut-backend1.onrender.com");
-const B = window.__API_BASE;
+  if (uploadBtn && resumeInput) {
+    uploadBtn.addEventListener("click", async () => {
+      const file = resumeInput.files[0];
+      if (!file) return alert("Please choose a file first.");
 
-/* app.js v9 – Jobstronaut Closed Beta (safe bindings + AES256 PUT) */
-(() => {
-  "use strict";
+      try {
+        const res = await fetch(`${BACKEND}/s3/presign`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            content_type: file.type || "application/pdf",
+          }),
+        });
 
-  // tiny helpers
-  const q = (s) => document.querySelector(s);
-  const ok = (m) => alert(`✅ ${m}`);
-  const err = (m, e) => { console.error(m, e); alert(`${m}\n(Check console)`); };
+        const data = await res.json();
+        if (!data.ok) throw new Error("Presign failed");
 
-  async function jfetch(url, opts) {
-    const r = await fetch(url, opts);
-    const t = await r.text();
-    let j = null; try { j = JSON.parse(t); } catch {}
-    return { ok: r.ok, status: r.status, json: j, text: t };
-  }
+        const formData = new FormData();
+        for (const [k, v] of Object.entries(data.presigned.fields)) {
+          formData.append(k, v);
+        }
+        formData.append("file", file);
 
-  async function uploadAndWaitlist(file, email) {
-    if (!file) throw new Error("No file");
-    const ct = file.type || "application/pdf";
+        const upload = await fetch(data.presigned.url, {
+          method: "POST",
+          body: formData,
+        });
 
-    // 1) presign
-    const pres = await jfetch(`${B}/s3/presign`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        filename: `${Date.now()}_${(file.name || "resume.pdf").replace(/\s+/g, "_")}`,
-        contentType: ct
-      })
+        if (upload.ok) {
+          alert("✅ Resume uploaded successfully!");
+        } else {
+          throw new Error("Upload error: " + upload.status);
+        }
+      } catch (e) {
+        err(e);
+      }
     });
-    if (!pres.ok || !pres.json?.url) {
-      throw new Error(`/s3/presign failed: ${pres.status} ${pres.text}`);
-    }
+    console.log("[bind] upload button bound");
+  }
 
-    // 2) PUT with AES256
-    const put = await fetch(pres.json.url, {
-      method: "PUT",
-      headers: {
-        "Content-Type": ct,
-        "x-amz-server-side-encryption": "AES256"
-      },
-      body: file
+  if (waitlistBtn && emailInput) {
+    waitlistBtn.addEventListener("click", async () => {
+      const email = emailInput.value.trim();
+      if (!email) return alert("Enter an email first.");
+      try {
+        const res = await fetch(`${BACKEND}/waitlist`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        if (data.ok) alert("✅ Added to waitlist!");
+        else throw new Error(data.error || "Waitlist failed");
+      } catch (e) {
+        err(e);
+      }
     });
-    if (!put.ok) throw new Error(`S3 upload failed: ${put.status}`);
-
-    // 3) waitlist
-    const wl = await jfetch(`${B}/waitlist`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email })
-    });
-    if (!wl.ok) throw new Error(`/waitlist failed: ${wl.status} ${wl.text}`);
+    console.log("[bind] waitlist button bound");
   }
+}
 
-  async function onlyWaitlist(email) {
-    const wl = await jfetch(`${B}/waitlist`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email })
-    });
-    if (!wl.ok) throw new Error(`/waitlist failed: ${wl.status} ${wl.text}`);
-  }
-
-  function bindOnce() {
-    const uploadBtn  = q("#uploadBtn") || q("#uploadSubmit");
-    const fileInput  = q("#resumeInput") || q("input[type='file']");
-    const emailInput = q("#emailInput") || q("input[type='email']");
-    const waitBtn    = q("#waitlistBtn") || q(".joinWaitlist");
-    const waitEmail  = q("#waitlistEmail") || q("input[name='waitlist']") || q("input[type='email']");
-
-    if (uploadBtn && fileInput) {
-      uploadBtn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        try {
-          const file = fileInput.files && fileInput.files[0];
-          if (!file) return alert("Pick a file first!");
-          const email = (emailInput && emailInput.value
-                          ? emailInput.value
-                          : `beta+${Date.now()}@example.com`).trim();
-          await uploadAndWaitlist(file, email);
-          ok("Upload + waitlist success!");
-        } catch (e) { err("Upload failed.", e); }
-      });
-      console.log("[bind] upload button bound");
-    } else {
-      console.warn("[bind] upload elements not found");
-    }
-
-    if (waitBtn && waitEmail) {
-      waitBtn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        try {
-          const email = (waitEmail.value || "").trim();
-          if (!email) return alert("Enter your email.");
-          await onlyWaitlist(email);
-          ok("Added to waitlist");
-        } catch (e) { err("Waitlist failed.", e); }
-      });
-      console.log("[bind] waitlist button bound");
-    } else {
-      console.warn("[bind] waitlist elements not found");
-    }
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bindOnce, { once: true });
-  } else {
-    bindOnce();
-  }
-})();
-
-
+document.addEventListener("DOMContentLoaded", bindOnce);
 
