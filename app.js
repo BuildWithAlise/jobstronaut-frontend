@@ -5,7 +5,7 @@
 // ===== Jobstronaut Frontend =====
 
 // Point to your Render backend. Keep exactly this for your prod domain:
-const BACKEND_BASE = "https://jobstronaut-backend.onrender.com";
+const BACKEND_BASE = "https://jobstronaut-backend1.onrender.com";
 
 // Helpers
 const $ = (sel) => document.querySelector(sel);
