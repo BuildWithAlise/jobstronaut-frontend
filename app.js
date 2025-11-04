@@ -4,10 +4,35 @@
 
 // ===== Jobstronaut Frontend =====
 
-console.log("[bind] script loaded");
+console.log("[bind] Jobstronaut frontend loaded");
 
 // ------------------------------
-//  Resume Upload
+// 🔔 Toast Notification Helper
+// ------------------------------
+function showToast(message, type = "success") {
+  const container = document.getElementById("toastContainer");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <span style="margin-right:6px;">${type === "success" ? "🚀" : "⚠️"}</span>
+    ${message}
+    <span style="font-size:11px;opacity:0.7;margin-left:8px;">
+      ${new Date().toLocaleTimeString()}
+    </span>
+  `;
+
+  container.appendChild(toast);
+  setTimeout(() => toast.classList.add("show"), 50);
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+// ------------------------------
+// 🧾 Resume Upload
 // ------------------------------
 const uploadForm = document.getElementById("uploadForm");
 const uploadResult = document.getElementById("uploadResult");
@@ -22,7 +47,10 @@ if (uploadForm) {
     const file = fileInput.files[0];
     const email = emailInput.value || "";
 
-    if (!file) return alert("Please select a file first.");
+    if (!file) {
+      showToast("Please select a file before uploading!", "error");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("file", file);
@@ -35,17 +63,22 @@ if (uploadForm) {
         method: "POST",
         body: formData,
       });
+
+      if (!res.ok) throw new Error("Upload failed with status " + res.status);
+
       const data = await res.json();
+      showToast("✅ Resume uploaded successfully!", "success");
       uploadResult.textContent = JSON.stringify(data, null, 2);
     } catch (err) {
       console.error("Upload failed:", err);
+      showToast("❌ Upload failed. Check console for details.", "error");
       uploadResult.textContent = "❌ Upload failed: " + err;
     }
   });
 }
 
 // ------------------------------
-//  Waitlist
+// 🪐 Waitlist
 // ------------------------------
 const waitlistForm = document.getElementById("waitlistForm");
 const statusResult = document.getElementById("statusResult");
@@ -58,7 +91,10 @@ if (waitlistForm) {
     const email = document.getElementById("WLEmail").value;
     const name = document.getElementById("WLName").value;
 
-    if (!email) return alert("Please enter your email.");
+    if (!email) {
+      showToast("Please enter your email first!", "error");
+      return;
+    }
 
     statusResult.textContent = "⏳ Joining waitlist...";
 
@@ -68,17 +104,22 @@ if (waitlistForm) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, name }),
       });
+
+      if (!res.ok) throw new Error("Waitlist failed with status " + res.status);
+
       const data = await res.json();
+      showToast("🚀 Added to waitlist successfully!", "success");
       statusResult.textContent = JSON.stringify(data, null, 2);
     } catch (err) {
       console.error("Waitlist failed:", err);
+      showToast("❌ Waitlist submission failed.", "error");
       statusResult.textContent = "❌ Waitlist failed: " + err;
     }
   });
 }
 
 // ------------------------------
-//  Check system status
+// 🩺 Health Check
 // ------------------------------
 const btnHealth = document.getElementById("btnHealth");
 if (btnHealth) {
@@ -89,14 +130,16 @@ if (btnHealth) {
       const res = await fetch("https://jobstronaut-backend1.onrender.com/health");
       const data = await res.json();
       healthResult.textContent = JSON.stringify(data, null, 2);
+      showToast("🛰️ Backend responded OK", "success");
     } catch (err) {
       healthResult.textContent = "❌ Error: " + err;
+      showToast("⚠️ Backend check failed", "error");
     }
   });
 }
 
 // ------------------------------
-//  Backend Status Indicator
+// 🌌 Backend Live Status
 // ------------------------------
 const backendStatusText = document.getElementById("backendStatusText");
 const backendURL = "https://jobstronaut-backend1.onrender.com/health";
@@ -107,18 +150,17 @@ async function checkBackendStatus() {
     const res = await fetch(backendURL);
     if (res.ok) {
       backendStatusText.textContent = "Online ✅";
-      backendStatusText.style.color = "#4ade80"; // green
+      backendStatusText.style.color = "#4ade80";
     } else {
       backendStatusText.textContent = "Error ❌";
-      backendStatusText.style.color = "#f87171"; // red
+      backendStatusText.style.color = "#f87171";
     }
-  } catch (err) {
+  } catch {
     backendStatusText.textContent = "Offline ❌";
     backendStatusText.style.color = "#f87171";
   }
 }
 
-// Initial check + repeat every 10s
 checkBackendStatus();
 setInterval(checkBackendStatus, 10000);
 

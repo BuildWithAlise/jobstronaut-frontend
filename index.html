@@ -5,12 +5,17 @@
      This software is part of the Jobstronaut™ project.
      Unauthorized copying, modification, or distribution is prohibited.
      =============================================================== -->
-<!doctype html>
+<!-- ===============================================================
+     Jobstronaut™ Frontend
+     Author: Alise McNiel
+     Copyright © 2025
+     =============================================================== -->
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Jobstronaut – Uploads, Waitlist & Status</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Jobstronaut – Uploads, Waitlist & Status</title>
   <style>
     :root {
       --bg: #0b0b14;
@@ -27,20 +32,22 @@
       background: var(--bg); color: var(--txt);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
     }
-    h1 { margin: 0 0 6px; font-size: 28px; }
+    h1 { margin: 0; font-size: 28px; }
+    h2 { margin-top: 0; }
     .muted { color: var(--muted); }
 
-    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-top: 20px; }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-top: 24px; }
     .card {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 16px; padding: 16px;
+      border-radius: 16px;
+      padding: 18px;
     }
     label { display:block; font-size: 14px; margin: 8px 0 6px; color: var(--muted); }
     input, button, textarea {
       font: inherit; color: var(--txt);
     }
-    input[type="text"], input[type="email"] {
+    input[type="text"], input[type="email"], input[type="file"] {
       width: 100%; background: #0f0f22; border: 1px solid var(--line); border-radius: 10px; padding: 10px;
     }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -48,27 +55,31 @@
       background: var(--btn);
       border: 1px solid var(--line);
       border-radius: 999px;
-      padding: 10px 14px;
+      padding: 10px 16px;
       cursor: pointer;
     }
     button:hover { border-color: #3a3a7a; }
-    .primary { background: linear-gradient(180deg, #ff9e42, #ff7a00); border: none; color: #1b1006; font-weight: 700; }
+    .primary {
+      background: linear-gradient(180deg, #ff9e42, #ff7a00);
+      border: none; color: #1b1006;
+      font-weight: 700;
+    }
     pre {
-      margin-top: 8px; padding: 12px; background: #0f0f22; border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 280px;
+      margin-top: 8px; padding: 12px;
+      background: #0f0f22; border: 1px solid var(--line);
+      border-radius: 10px; overflow: auto;
+      max-height: 240px;
     }
-
-    .toast {
-      position: fixed; left: 50%; transform: translateX(-50%) translateY(20px);
-      bottom: 20px; background: #131327; border: 1px solid var(--line); border-radius: 999px; padding: 10px 14px; opacity: 0; transition: opacity .2s, transform .2s; z-index: 9999;
-    }
-    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    .toast.err { border-color: #7a3a3a; color: #ffb3b3; }
-    header { display:flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    header { display:flex; justify-content: space-between; align-items:center; flex-wrap:wrap; gap:12px; }
     .brand { display:flex; align-items:center; gap:10px; }
-    .brand .logo { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(180deg, #87c7ff, #4ea3ff); display:grid; place-items:center; font-weight:900; color:#001a33; }
-    .spacer { flex: 1; }
+    .brand .logo {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: linear-gradient(180deg, #87c7ff, #4ea3ff);
+      display:grid; place-items:center; font-weight:900; color:#001a33;
+    }
   </style>
 </head>
+
 <body>
   <header>
     <div class="brand">
@@ -78,92 +89,97 @@
         <div class="muted" style="font-size: 13px;">I see your future — and it’s bright.</div>
       </div>
     </div>
-    <div class="spacer"></div>
     <button id="btnAdmin">Open Mission Control</button>
   </header>
 
   <div class="grid">
-    <!-- Health & Status -->
+    <!-- 🌐 System Status -->
     <div class="card">
       <h2>System Status</h2>
       <div class="row" style="margin-top:8px;">
-        <button id="btnHealth" class="primary">Check /health</button>
+        <button id="btnHealth" class="primary">Check Backend</button>
         <span id="healthResult" class="muted">—</span>
-      </div>
-      <div class="row" style="margin-top:8px;">
-        <button id="btnStatus">Get /status JSON</button>
       </div>
       <pre id="statusResult" class="muted">—</pre>
     </div>
 
-    <!-- Waitlist -->
+    <!-- 🧑🏽‍🚀 Waitlist -->
     <div class="card">
       <h2>Join the Waitlist</h2>
       <form id="waitlistForm">
-        <label for="wlEmail">Email</label>
-        <input id="wlEmail" type="email" placeholder="you@galaxy.com" required />
-        <label for="wlName">Name (optional)</label>
-        <input id="wlName" type="text" placeholder="Astronaut Name" />
+        <label for="WLEmail">Email</label>
+        <input id="WLEmail" type="email" placeholder="you@galaxy.com" required />
+        <label for="WLName">Name (optional)</label>
+        <input id="WLName" type="text" placeholder="Astronaut Name" />
         <div class="row" style="margin-top:12px;">
           <button class="primary" type="submit">Beam Me Up</button>
         </div>
       </form>
+      <pre id="statusResult" class="muted">—</pre>
     </div>
 
-    <!-- Upload -->
+    <!-- 📄 Resume Upload -->
     <div class="card">
       <h2>Upload Your Resume</h2>
-      <div class="card">
-  <h2>📤 Test Upload to S3</h2>
-  <form id="testForm" enctype="multipart/form-data">
-    <input type="file" id="testFile" name="file" />
-    <button type="submit">Upload Test File</button>
-  </form>
-  <pre id="testResult" class="muted">—</pre>
-</div>
-<script>
-document.getElementById("testForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const file = document.getElementById("testFile").files[0];
-  if (!file) return alert("Choose a file first!");
-  const fd = new FormData();
-  fd.append("file", file);
-  const url = `/admin/test_upload?secret=cosmic_access_999`;
-  document.getElementById("testResult").textContent = "⏳ Uploading...";
-  try {
-    const res = await fetch(url, { method: "POST", body: fd });
-    const data = await res.json();
-    document.getElementById("testResult").textContent = JSON.stringify(data, null, 2);
-  } catch (err) {
-    document.getElementById("testResult").textContent = "❌ " + err;
-  }
-});
-</script>
-
-      <label>Pick a file</label>
-      <div class="row">
-        <input id="resumeInput" type="file" accept=".pdf,.doc,.docx,.txt" />
-        <button id="btnUpload" class="primary">Upload</button>
-      </div>
-      <div class="muted" id="resumeName" style="margin-top:6px;">No file chosen</div>
+      <form id="uploadForm" enctype="multipart/form-data">
+        <label for="resumeFile">Select File</label>
+        <input id="resumeFile" type="file" accept=".pdf,.doc,.docx,.txt" />
+        <label for="emailField">Email (optional)</label>
+        <input id="emailField" type="email" placeholder="you@galaxy.com" />
+        <div class="row" style="margin-top:12px;">
+          <button type="submit" class="primary">Upload</button>
+        </div>
+      </form>
       <pre id="uploadResult" class="muted">—</pre>
     </div>
   </div>
 
-  <script src="app.js"></script>
   <!-- Backend Status Indicator -->
-<div id="backendStatus" style="
-  position: fixed;
-  bottom: 10px;
-  right: 15px;
-  color: #bbb;
-  font-family: monospace;
-  font-size: 13px;
-  opacity: 0.9;
-">
-  Backend: <span id="backendStatusText">Checking...</span>
-</div>
+  <div id="backendStatus" style="
+    position: fixed;
+    bottom: 10px;
+    right: 15px;
+    color: #bbb;
+    font-family: monospace;
+    font-size: 13px;
+    opacity: 0.9;
+  ">
+    Backend: <span id="backendStatusText">Checking...</span>
+  </div>
 
+  <!-- Toast Container -->
+  <div id="toastContainer" style="
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    z-index: 9999;
+  "></div>
+
+  <!-- Toast Styles -->
+  <style>
+  .toast {
+    background: rgba(30, 30, 40, 0.95);
+    color: #fff;
+    border-left: 4px solid #4ade80;
+    padding: 12px 18px;
+    margin-top: 8px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { border-left-color: #f87171; }
+  .toast.success { border-left-color: #4ade80; }
+  </style>
+
+  <script src="app.js"></script>
 </body>
 </html>
 
