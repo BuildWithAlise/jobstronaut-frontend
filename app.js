@@ -122,4 +122,27 @@ $("#btnAdmin").addEventListener("click", () => {
   const url = `${BACKEND_BASE}/admin?secret=cosmic_access_999`;
   window.open(url, "_blank", "noopener,noreferrer");
 });
+// --- Backend Status Monitor ---
+const backendStatusText = document.getElementById("backendStatusText");
+const backendURL = "https://jobstronaut-backend1.onrender.com/health";
+
+async function checkBackendStatus() {
+  try {
+    const res = await fetch(backendURL);
+    if (res.ok) {
+      backendStatusText.textContent = "Online ✅";
+      backendStatusText.style.color = "#4ade80"; // green
+    } else {
+      backendStatusText.textContent = "Error ❌";
+      backendStatusText.style.color = "#f87171"; // red
+    }
+  } catch (err) {
+    backendStatusText.textContent = "Offline ❌";
+    backendStatusText.style.color = "#f87171";
+  }
+}
+
+// Initial check + repeat every 10s
+checkBackendStatus();
+setInterval(checkBackendStatus, 10000);
 

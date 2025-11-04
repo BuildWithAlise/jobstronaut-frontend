@@ -151,6 +151,19 @@ document.getElementById("testForm").addEventListener("submit", async (e) => {
   </div>
 
   <script src="app.js"></script>
+  <!-- Backend Status Indicator -->
+<div id="backendStatus" style="
+  position: fixed;
+  bottom: 10px;
+  right: 15px;
+  color: #bbb;
+  font-family: monospace;
+  font-size: 13px;
+  opacity: 0.9;
+">
+  Backend: <span id="backendStatusText">Checking...</span>
+</div>
+
 </body>
 </html>
 
