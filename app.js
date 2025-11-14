@@ -53,8 +53,16 @@ if (uploadForm) {
     }
 
     const formData = new FormData();
-    formData.append("file", file);
-    formData.append("email", email);
+    formData.append("file", fileInput.files[0]);
+    formData.append("email", emailInput.value || "anonymous");
+
+    const url = "https://jobstronaut-backend1.onrender.com/upload";
+
+    const response = await fetch(url, {
+     method: "POST",
+     body: formData
+     });
+
 
     uploadResult.textContent = "⏳ Uploading...";
 
